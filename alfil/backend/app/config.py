@@ -1,0 +1,22 @@
+from pydantic_settings import BaseSettings
+from functools import lru_cache
+
+
+class Settings(BaseSettings):
+    """Application configuration settings"""
+    app_name: str = "Alfil - Firewall Audit System"
+    debug: bool = True
+    database_url: str = "sqlite:///./alfil.db"
+    api_v1_prefix: str = "/api/v1"
+    cors_origins: list = ["http://localhost:5173", "http://localhost:3000"]
+
+    # Encryption key for storing passwords (should be set via env var in production)
+    encryption_key: str = "your-encryption-key-here-change-in-production"
+
+    class Config:
+        env_file = ".env"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

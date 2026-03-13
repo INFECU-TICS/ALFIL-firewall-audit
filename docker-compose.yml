@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./alfil/backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite:////data/alfil.db
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - DEBUG=${DEBUG:-false}
+    volumes:
+      - alfil_data:/data
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alfil-backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.alfil-backend.entrypoints=websecure"
+      - "traefik.http.routers.alfil-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alfil-backend.loadbalancer.server.port=8000"
+
+volumes:
+  alfil_data:
+    driver: local
