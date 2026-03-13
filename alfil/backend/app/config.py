@@ -4,7 +4,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     """Application configuration settings"""
-    app_name: str = "Alfil - Firewall Audit System"
+    app_name: str = "ALFIL – Automated Layered Firewall Inspection & Logic"
     debug: bool = True
     database_url: str = "sqlite:///./alfil.db"
     api_v1_prefix: str = "/api/v1"

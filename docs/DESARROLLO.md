@@ -6,11 +6,11 @@ Arquitectura, comandos y convenciones del repositorio. Complementa a `README.md`
 
 **ALFIL – Automated Layered Firewall Inspection & Logic**
 
-A firewall audit system for inspecting and managing Sophos Firewall configurations. The backend exposes a FastAPI REST API that communicates with Sophos Firewall via its XML API, stores connection configs with encrypted credentials in SQLite, and will serve a frontend (not yet implemented).
+Firewall audit system for Sophos Firewall (SFOS/XG). Recolecta configuración via XML API, analiza problemas de seguridad y genera reportes de salud exportables en Excel y PDF. Backend FastAPI + Frontend React.
 
 ## Commands
 
-### Local Development
+### Backend (development)
 
 ```bash
 cd alfil/backend
@@ -19,7 +19,17 @@ cp ../../.env.example ../../.env   # edit values
 uvicorn app.main:app --reload
 ```
 
-API docs available at `http://localhost:8000/docs`.
+API docs: `http://localhost:8000/docs`
+
+### Frontend (development)
+
+```bash
+cd alfil/frontend
+npm install
+npm run dev    # http://localhost:5173
+```
+
+El frontend en dev hace proxy de `/api/` al backend via `vite.config.js`.
 
 ### Docker (local)
 
@@ -30,50 +40,71 @@ docker compose up --build
 
 ## Deployment (Dokploy + GitHub)
 
-1. Push the repo to GitHub. Dokploy reads `docker-compose.yml` from the root.
-2. In the Dokploy UI, set these environment variables **before** the first deploy:
+1. Push a GitHub. Dokploy lee `docker-compose.yml` de la raíz.
+2. En el UI de Dokploy, configurar estas variables **antes** del primer deploy:
 
-| Variable | Notes |
+| Variable | Notas |
 |---|---|
-| `ENCRYPTION_KEY` | Generate: `python -c "import secrets; print(secrets.token_hex(32))"`. Never rotate — doing so makes all stored passwords unreadable. |
-| `CORS_ORIGINS` | JSON array string, e.g. `["https://alfil.example.com"]` |
-| `DOMAIN` | Public hostname, e.g. `alfil.example.com` |
-| `DEBUG` | Optional; defaults to `false` |
+| `ENCRYPTION_KEY` | Generar: `python -c "import secrets; print(secrets.token_hex(32))"`. Nunca rotar — rompe todas las contraseñas guardadas. |
+| `DOMAIN` | Hostname público, ej. `alfil.example.com` |
+| `DEBUG` | Opcional, default `false` |
 
-3. `DATABASE_URL` is hardcoded in `docker-compose.yml` to `sqlite:////data/alfil.db` (absolute path inside container, persisted in the `alfil_data` named volume).
-4. Traefik labels in `docker-compose.yml` handle TLS termination via Let's Encrypt and route `Host(DOMAIN) && PathPrefix(/api)` to the backend.
+3. `DATABASE_URL` está hardcoded en `docker-compose.yml` → `sqlite:////data/alfil.db` (volumen persistente `alfil_data`).
+4. Traefik: el frontend sirve `Host(DOMAIN)` (priority=1), el backend sirve `Host(DOMAIN) && PathPrefix(/api)` (priority=10). El nginx del frontend también proxea `/api/` al backend.
 
 ## Architecture
 
 ### Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Backend framework | FastAPI + Uvicorn |
+|---|---|
+| Backend | FastAPI + Uvicorn |
 | ORM | SQLAlchemy 2.x |
 | Validation | Pydantic v2 |
 | Database | SQLite (volume-persisted in Docker) |
-| Firewall protocol | XML API over HTTPS (port 4444) |
-| Encryption | Fernet (cryptography lib, PBKDF2-HMAC-SHA256 key derivation) |
-| XML parsing | xmltodict |
-| Migrations | Alembic (installed, not yet configured) |
+| Firewall API | XML API over HTTPS port 4444 |
+| Encryption | Fernet + PBKDF2-HMAC-SHA256 |
+| Export | openpyxl (Excel), reportlab (PDF) |
+| Frontend | React 18 + Vite + TailwindCSS |
+| Frontend server | nginx (prod), vite dev server (dev) |
 
-### Backend Structure (`alfil/backend/app/`)
+### Backend (`alfil/backend/app/`)
 
-- **`config.py`** — Pydantic `Settings` class; reads env vars. Defaults: SQLite DB, CORS for `localhost:5173` and `localhost:3000`.
-- **`database.py`** — SQLAlchemy engine/session setup; `get_db()` dependency for injection.
-- **`models/connection.py`** — `ConnectionConfig` ORM model; stores firewall host, port, username, encrypted password, and timestamps.
-- **`schemas/connection.py`** — Pydantic schemas: `ConnectionConfigCreate`, `ConnectionConfigUpdate`, `ConnectionConfigResponse` (no password), `ConnectionTestRequest/Response`.
-- **`services/sophos_client.py`** — `SophosClient` class that wraps the Sophos XML API (`https://<host>:<port>/webconsole/APIController`). Key methods: `test_connection()`, `get_system_status()`, `get_firewall_rules()`, `get_network_zones()`, `get_interfaces()`.
-- **`services/crypto.py`** — `EncryptionManager` singleton using Fernet for encrypting stored passwords. Key: derived from a secret via PBKDF2.
-- **`routers/`** — Empty; API route implementations go here.
+- **`config.py`** — Pydantic `Settings`; lee env vars. `CORS_ORIGINS` se pasa como JSON string.
+- **`database.py`** — SQLAlchemy engine + `get_db()` dependency. Guard `"sqlite" in url` para `check_same_thread`.
+- **`models/connection.py`** — `ConnectionConfig`: host, port, username, `password_encrypted`, verify_ssl, timestamps.
+- **`schemas/connection.py`** — `ConnectionConfigCreate/Update/Response`, `ConnectionTestRequest/Response`. La response nunca incluye password.
+- **`routers/connections.py`** — CRUD completo + `POST /connections/test` (ad-hoc) + `POST /connections/{id}/test` (guardada).
+- **`routers/audit.py`** — `POST /audit/{id}` → JSON report, `GET /audit/{id}/export/excel`, `GET /audit/{id}/export/pdf`.
+- **`services/sophos_client.py`** — `SophosFirewallClient`. `collect_audit_data()` llama todos los colectores secuencialmente; continúa si alguno falla. Helper `_extract_list()` normaliza estructuras XML anidadas (pueden ser str/dict/list).
+- **`services/audit_service.py`** — `generate_audit_report(connection_info, raw_data)` → report dict con `summary`, `issues[]`, `sections{}`. Score 0–100.
+- **`services/crypto.py`** — `EncryptionManager` singleton. Fixed salt `alfil_salt_value`.
 
-### Key Design Decisions
+### Frontend (`alfil/frontend/src/`)
 
-- Passwords are never returned in API responses (`ConnectionConfigResponse` excludes them).
-- SSL verification for Sophos API calls is configurable (disabled by default for self-signed certs).
-- The Sophos XML API requires credentials embedded in every request payload.
+- **`api.js`** — Todas las llamadas HTTP. Export URLs se abren con `window.open`.
+- **`pages/ConnectionsPage.jsx`** — Grid de conexiones: crear, editar, eliminar, probar, navegar a auditoría.
+- **`pages/AuditPage.jsx`** — Ejecuta auditoría, muestra score + hallazgos colapsables por sección + tablas de datos, botones exportación.
+- **`components/ConnectionForm.jsx`** — Form con botón "Probar conexión" antes de guardar.
+- **`components/IssuesBadge.jsx`** — `SeverityBadge` y `ScoreRing`.
+
+### Detecciones de auditoría implementadas
+
+| Hallazgo | Severidad |
+|---|---|
+| Admin sin MFA/OTP | Critical |
+| Acceso admin desde zona WAN | Critical |
+| Regla Any→Any Accept | Warning |
+| Regla duplicada | Warning |
+| Regla sin logging | Warning |
+| Regla NAT DNAT desde WAN | Warning |
+| Certificado de admin por defecto | Warning |
+| Sin notificaciones configuradas | Warning |
+| NTP no configurado | Warning |
+| Regla deshabilitada (potencialmente obsoleta) | Info |
+| Host sin uso en reglas | Info |
+| Timezone del equipo | Info |
 
 ### Postman Collection
 
-`sophosfirewall.postman_collection.json` at the repo root contains reference API calls for the Sophos Firewall XML API — useful for understanding request/response formats when implementing new `SophosClient` methods.
+`sophosfirewall.postman_collection.json` — referencia de requests XML para la Sophos API. Útil para entender el formato de responses al agregar nuevos colectores.

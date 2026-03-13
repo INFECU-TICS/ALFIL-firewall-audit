@@ -19,4 +19,4 @@ class ConnectionConfig(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     def __repr__(self):
-        return f"<ConnectionConfig(name='{self.name}', host='{self.host}')">"
+        return f"<ConnectionConfig(name='{self.name}', host='{self.host}')>"
