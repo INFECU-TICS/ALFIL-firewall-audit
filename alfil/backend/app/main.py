@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.database import Base, engine
+from app.database import Base, engine, SessionLocal
+from app.models.audit_report import AuditReport  # noqa: ensure table is registered
 from app.routers import connections, audit
 
 Base.metadata.create_all(bind=engine)
@@ -26,6 +27,21 @@ app.add_middleware(
 
 app.include_router(connections.router, prefix=settings.api_v1_prefix)
 app.include_router(audit.router, prefix=settings.api_v1_prefix)
+
+
+@app.on_event("startup")
+def _mark_stale_audits():
+    """Marca como 'failed' las auditorías que quedaron en 'running' por un reinicio."""
+    db = SessionLocal()
+    try:
+        stale = db.query(AuditReport).filter(AuditReport.status == "running").all()
+        for a in stale:
+            a.status = "failed"
+            a.error = "El servidor fue reiniciado mientras la auditoría estaba en curso"
+        if stale:
+            db.commit()
+    finally:
+        db.close()
 
 
 @app.get("/health")

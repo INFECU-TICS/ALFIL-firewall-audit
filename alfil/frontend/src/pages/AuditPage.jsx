@@ -1,26 +1,25 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Play, Download, FileSpreadsheet, FileText,
+  ArrowLeft, Play, Download, FileSpreadsheet, FileText, FileArchive,
   Loader2, AlertCircle, CheckCircle, ChevronDown, ChevronRight,
-  Shield, Users, Globe, Server, List, FileWarning
+  Shield, Users, Globe, Server, List, FileWarning, Trash2, Eye, Clock
 } from "lucide-react";
 import { api } from "../api";
 import { SeverityBadge, ScoreRing } from "../components/IssuesBadge";
+import ConfirmModal from "../components/ConfirmModal";
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Helpers de UI
 // ---------------------------------------------------------------------------
 function Section({ icon: Icon, title, count, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="card mb-4">
-      <button className="w-full flex items-center gap-3 text-left" onClick={() => setOpen((o) => !o)}>
+      <button className="w-full flex items-center gap-3 text-left" onClick={() => setOpen(o => !o)}>
         <Icon className="w-5 h-5 text-brand-700 flex-shrink-0" />
         <span className="font-semibold text-gray-800 flex-1">{title}</span>
-        {count !== undefined && (
-          <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">{count}</span>
-        )}
+        {count !== undefined && <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">{count}</span>}
         {open ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
       </button>
       {open && <div className="mt-4 border-t pt-4">{children}</div>}
@@ -29,12 +28,9 @@ function Section({ icon: Icon, title, count, children, defaultOpen = false }) {
 }
 
 function IssueRow({ issue }) {
+  const bg = { critical: "bg-red-50 border-red-100", warning: "bg-yellow-50 border-yellow-100", info: "bg-blue-50 border-blue-100" };
   return (
-    <div className={`flex items-start gap-3 p-3 rounded-lg mb-2 text-sm ${
-      issue.severity === "critical" ? "bg-red-50 border border-red-100" :
-      issue.severity === "warning"  ? "bg-yellow-50 border border-yellow-100" :
-                                      "bg-blue-50 border border-blue-100"
-    }`}>
+    <div className={`flex items-start gap-3 p-3 rounded-lg mb-2 text-sm border ${bg[issue.severity] || "bg-gray-50"}`}>
       <SeverityBadge severity={issue.severity} />
       <div className="flex-1 min-w-0">
         <p className="font-medium text-gray-800">{issue.title}</p>
@@ -45,23 +41,17 @@ function IssueRow({ issue }) {
 }
 
 function DataTable({ headers, rows }) {
-  if (!rows || rows.length === 0) return <p className="text-sm text-gray-400 italic">Sin datos disponibles</p>;
+  if (!rows?.length) return <p className="text-sm text-gray-400 italic">Sin datos disponibles</p>;
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full text-xs">
         <thead>
-          <tr>
-            {headers.map((h) => (
-              <th key={h} className="text-left px-3 py-2 bg-gray-50 text-gray-600 font-semibold border-b">{h}</th>
-            ))}
-          </tr>
+          <tr>{headers.map(h => <th key={h} className="text-left px-3 py-2 bg-gray-50 text-gray-600 font-semibold border-b">{h}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((row, i) => (
             <tr key={i} className="border-b last:border-0 hover:bg-gray-50">
-              {row.map((cell, j) => (
-                <td key={j} className="px-3 py-2 text-gray-700 max-w-xs truncate" title={String(cell)}>{cell ?? "—"}</td>
-              ))}
+              {row.map((cell, j) => <td key={j} className="px-3 py-2 text-gray-700 max-w-xs truncate" title={String(cell ?? "")}>{cell ?? "—"}</td>)}
             </tr>
           ))}
         </tbody>
@@ -70,79 +60,261 @@ function DataTable({ headers, rows }) {
   );
 }
 
+const SEV_ORDER = { critical: 0, warning: 1, info: 2, ok: 3 };
+
+function StatusBadge({ status }) {
+  const map = {
+    running:   "bg-blue-100 text-blue-700",
+    completed: "bg-green-100 text-green-700",
+    failed:    "bg-red-100 text-red-700",
+  };
+  const labels = { running: "Ejecutando", completed: "Completada", failed: "Fallida" };
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${map[status] || "bg-gray-100 text-gray-600"}`}>
+      {status === "running" && <Loader2 className="w-3 h-3 animate-spin" />}
+      {status === "completed" && <CheckCircle className="w-3 h-3" />}
+      {labels[status] || status}
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
-// Página
+// Página principal
 // ---------------------------------------------------------------------------
 export default function AuditPage() {
-  const { id } = useParams();
+  const { id: connectionId } = useParams();
   const navigate = useNavigate();
-  const [running, setRunning] = useState(false);
-  const [report, setReport] = useState(null);
-  const [error, setError] = useState("");
 
-  const runAudit = async () => {
-    setRunning(true);
-    setError("");
+  const [connectionName, setConnectionName] = useState("");
+  const [audits, setAudits] = useState([]);
+  const [selectedAuditId, setSelectedAuditId] = useState(null);
+  const [report, setReport] = useState(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(null); // {id}
+
+  const pollingRef = useRef(null);
+
+  // ---- Cargar historial ----
+  const fetchHistory = useCallback(async () => {
+    try {
+      const data = await api.listAudits(connectionId);
+      setAudits(data);
+      return data;
+    } catch (e) {
+      setError(e.message);
+      return [];
+    }
+  }, [connectionId]);
+
+  // ---- Iniciar/detener polling ----
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) return;
+    pollingRef.current = setInterval(async () => {
+      const data = await fetchHistory();
+      const hasRunning = data.some(a => a.status === "running");
+      if (!hasRunning) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+        // Si el audit seleccionado acaba de completarse, recargar el reporte
+        setSelectedAuditId(prev => {
+          if (prev) {
+            const found = data.find(a => a.id === prev);
+            if (found?.status === "completed") {
+              loadReport(prev);
+            }
+          }
+          return prev;
+        });
+      }
+    }, 3000);
+  }, [fetchHistory]);
+
+  useEffect(() => {
+    // Obtener nombre de conexión
+    api.getConnection(connectionId).then(c => setConnectionName(c.name)).catch(() => {});
+    fetchHistory().then(data => {
+      if (data.some(a => a.status === "running")) startPolling();
+    });
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+  }, [connectionId]);
+
+  // ---- Cargar reporte completo ----
+  const loadReport = async (auditId) => {
+    setSelectedAuditId(auditId);
+    setLoadingReport(true);
     setReport(null);
     try {
-      const data = await api.runAudit(id);
+      const data = await api.getAuditReport(auditId);
       setReport(data);
     } catch (e) {
       setError(e.message);
     } finally {
-      setRunning(false);
+      setLoadingReport(false);
     }
   };
 
-  const download = (url) => { window.open(url, "_blank"); };
+  // ---- Iniciar auditoría ----
+  const handleStart = async () => {
+    setStarting(true);
+    setError("");
+    try {
+      const { audit_id } = await api.startAudit(connectionId);
+      await fetchHistory();
+      setSelectedAuditId(audit_id);
+      setReport(null);
+      startPolling();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  // ---- Eliminar auditoría ----
+  const handleDeleteAudit = async () => {
+    const { id } = confirmDelete;
+    setConfirmDelete(null);
+    try {
+      await api.deleteAudit(id);
+      if (selectedAuditId === id) { setSelectedAuditId(null); setReport(null); }
+      await fetchHistory();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const dl = (url) => window.open(url, "_blank");
+
+  const selectedAudit = audits.find(a => a.id === selectedAuditId);
 
   return (
     <div>
-      {/* Header */}
+      {/* Cabecera */}
       <div className="flex items-center gap-4 mb-6">
         <button className="btn-secondary py-1.5 px-3 text-sm" onClick={() => navigate("/")}>
           <ArrowLeft className="w-4 h-4" /> Volver
         </button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">Auditoría de Firewall</h1>
-          {report && <p className="text-sm text-gray-500">{report.connection?.name} — {report.connection?.host}</p>}
+          {connectionName && <p className="text-sm text-gray-500">{connectionName}</p>}
         </div>
-        <button className="btn-primary" onClick={runAudit} disabled={running}>
-          {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-          {running ? "Auditando…" : report ? "Re-auditar" : "Iniciar auditoría"}
+        <button className="btn-primary" onClick={handleStart} disabled={starting}>
+          {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+          Nueva auditoría
         </button>
       </div>
 
-      {/* Error */}
       {error && (
         <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 mb-4">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span className="text-sm">{error}</span>
+          <AlertCircle className="w-5 h-5 flex-shrink-0" /><span className="text-sm">{error}</span>
         </div>
       )}
 
-      {/* Waiting state */}
-      {!running && !report && !error && (
-        <div className="card text-center py-20 text-gray-400">
-          <Shield className="w-12 h-12 mx-auto mb-3 text-gray-200" />
-          <p className="text-lg font-medium mb-1">Listo para auditar</p>
-          <p className="text-sm">Haz clic en "Iniciar auditoría" para analizar el firewall.</p>
+      {/* Tabla de historial */}
+      <div className="card mb-6">
+        <h2 className="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <Clock className="w-4 h-4 text-brand-700" /> Historial de auditorías
+        </h2>
+
+        {audits.length === 0 ? (
+          <p className="text-sm text-gray-400 italic py-4 text-center">
+            Sin auditorías registradas. Haz clic en "Nueva auditoría" para comenzar.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left px-3 py-2 text-gray-600 font-semibold">#</th>
+                  <th className="text-left px-3 py-2 text-gray-600 font-semibold">Fecha</th>
+                  <th className="text-left px-3 py-2 text-gray-600 font-semibold">Estado</th>
+                  <th className="text-left px-3 py-2 text-gray-600 font-semibold">Score</th>
+                  <th className="text-left px-3 py-2 text-gray-600 font-semibold">Críticos</th>
+                  <th className="text-left px-3 py-2 text-gray-600 font-semibold">Warnings</th>
+                  <th className="text-left px-3 py-2 text-gray-600 font-semibold">Info</th>
+                  <th className="text-left px-3 py-2 text-gray-600 font-semibold">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {audits.map((a) => (
+                  <tr key={a.id}
+                    className={`border-b last:border-0 transition-colors ${selectedAuditId === a.id ? "bg-brand-50" : "hover:bg-gray-50"}`}>
+                    <td className="px-3 py-2 text-gray-500 text-xs">{a.id}</td>
+                    <td className="px-3 py-2 text-gray-700 whitespace-nowrap">
+                      {a.created_at ? new Date(a.created_at).toLocaleString() : "—"}
+                    </td>
+                    <td className="px-3 py-2"><StatusBadge status={a.status} /></td>
+                    <td className="px-3 py-2 font-bold">
+                      {a.summary
+                        ? <span className={a.summary.score >= 80 ? "text-green-600" : a.summary.score >= 50 ? "text-yellow-600" : "text-red-600"}>
+                            {a.summary.score}
+                          </span>
+                        : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-red-600 font-semibold">{a.summary?.critical ?? "—"}</td>
+                    <td className="px-3 py-2 text-yellow-700 font-semibold">{a.summary?.warning ?? "—"}</td>
+                    <td className="px-3 py-2 text-blue-600 font-semibold">{a.summary?.info ?? "—"}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1">
+                        {a.status === "completed" && (
+                          <>
+                            <button title="Ver reporte" className="p-1 text-gray-400 hover:text-brand-700 transition-colors" onClick={() => loadReport(a.id)}>
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button title="Excel" className="p-1 text-gray-400 hover:text-green-600 transition-colors" onClick={() => dl(api.exportExcelUrl(a.id))}>
+                              <FileSpreadsheet className="w-4 h-4" />
+                            </button>
+                            <button title="PDF" className="p-1 text-gray-400 hover:text-red-600 transition-colors" onClick={() => dl(api.exportPdfUrl(a.id))}>
+                              <FileText className="w-4 h-4" />
+                            </button>
+                            <button title="ZIP" className="p-1 text-gray-400 hover:text-indigo-600 transition-colors" onClick={() => dl(api.exportZipUrl(a.id))}>
+                              <FileArchive className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                        {a.status === "running" && (
+                          <span className="text-xs text-blue-500 flex items-center gap-1">
+                            <Loader2 className="w-3 h-3 animate-spin" /> en progreso…
+                          </span>
+                        )}
+                        {a.status === "failed" && (
+                          <span className="text-xs text-red-500" title={a.error}>Error</span>
+                        )}
+                        <button title="Eliminar" className="p-1 text-gray-300 hover:text-red-600 transition-colors ml-1"
+                          onClick={() => setConfirmDelete({ id: a.id })}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Reporte seleccionado */}
+      {loadingReport && (
+        <div className="card text-center py-12 text-gray-400">
+          <Loader2 className="w-8 h-8 mx-auto animate-spin text-brand-700 mb-2" />
+          <p className="text-sm">Cargando reporte…</p>
         </div>
       )}
 
-      {/* Running indicator */}
-      {running && (
-        <div className="card text-center py-20 text-gray-500">
-          <Loader2 className="w-10 h-10 mx-auto mb-4 animate-spin text-brand-700" />
-          <p className="font-medium">Recolectando datos del firewall…</p>
-          <p className="text-sm text-gray-400 mt-1">Esto puede tardar hasta 60 segundos según el equipo.</p>
+      {selectedAudit?.status === "running" && !report && !loadingReport && (
+        <div className="card text-center py-12 text-blue-600">
+          <Loader2 className="w-10 h-10 mx-auto animate-spin mb-3" />
+          <p className="font-medium">Auditoría en ejecución en segundo plano…</p>
+          <p className="text-sm text-gray-400 mt-1">El resultado aparecerá aquí al completarse.</p>
         </div>
       )}
 
-      {/* Report */}
-      {report && !running && (
+      {report && report.generated_at && !loadingReport && (
         <div>
-          {/* Summary bar */}
+          {/* Panel de resumen */}
           <div className="card mb-6">
             <div className="flex flex-wrap items-center gap-6">
               <div className="text-center">
@@ -151,9 +323,9 @@ export default function AuditPage() {
               </div>
               <div className="flex-1 grid grid-cols-3 gap-3 min-w-0">
                 {[
-                  { label: "Críticos", key: "critical", cls: "text-red-600 bg-red-50 border-red-100" },
-                  { label: "Advertencias", key: "warning", cls: "text-yellow-700 bg-yellow-50 border-yellow-100" },
-                  { label: "Informativos", key: "info", cls: "text-blue-700 bg-blue-50 border-blue-100" },
+                  { label: "Críticos",     key: "critical", cls: "text-red-600 bg-red-50 border-red-100" },
+                  { label: "Advertencias", key: "warning",  cls: "text-yellow-700 bg-yellow-50 border-yellow-100" },
+                  { label: "Informativos", key: "info",     cls: "text-blue-700 bg-blue-50 border-blue-100" },
                 ].map(({ label, key, cls }) => (
                   <div key={key} className={`rounded-xl p-4 border text-center ${cls}`}>
                     <div className="text-3xl font-bold">{report.summary[key]}</div>
@@ -161,124 +333,99 @@ export default function AuditPage() {
                   </div>
                 ))}
               </div>
-              {/* Export buttons */}
               <div className="flex flex-col gap-2 items-start">
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Exportar</p>
-                <button className="btn-secondary text-xs py-1.5 px-3 w-full" onClick={() => download(api.exportExcelUrl(id))}>
+                <button className="btn-secondary text-xs py-1.5 px-3 w-full" onClick={() => dl(api.exportExcelUrl(selectedAuditId))}>
                   <FileSpreadsheet className="w-4 h-4 text-green-600" /> Excel
                 </button>
-                <button className="btn-secondary text-xs py-1.5 px-3 w-full" onClick={() => download(api.exportPdfUrl(id))}>
+                <button className="btn-secondary text-xs py-1.5 px-3 w-full" onClick={() => dl(api.exportPdfUrl(selectedAuditId))}>
                   <FileText className="w-4 h-4 text-red-600" /> PDF
+                </button>
+                <button className="btn-secondary text-xs py-1.5 px-3 w-full" onClick={() => dl(api.exportZipUrl(selectedAuditId))}>
+                  <FileArchive className="w-4 h-4 text-indigo-600" /> ZIP
                 </button>
               </div>
             </div>
-
-            {/* System info */}
             <div className="mt-4 pt-4 border-t grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm text-gray-600">
               <div><span className="font-medium text-gray-800">Hostname:</span> {report.system?.hostname || "—"}</div>
               <div><span className="font-medium text-gray-800">Modelo:</span> {report.system?.model || "—"}</div>
               <div><span className="font-medium text-gray-800">Firmware:</span> {report.system?.firmware || "—"}</div>
               <div><span className="font-medium text-gray-800">Timezone:</span> {report.system?.timezone || "—"}</div>
             </div>
-            <p className="text-xs text-gray-400 mt-3">Auditoría realizada: {new Date(report.generated_at).toLocaleString()}</p>
+            <p className="text-xs text-gray-400 mt-3">Auditoría: {new Date(report.generated_at).toLocaleString()}</p>
           </div>
 
-          {/* All issues */}
+          {/* Hallazgos */}
           <Section icon={FileWarning} title="Todos los hallazgos" count={report.issues?.length} defaultOpen={report.summary.critical > 0}>
-            {report.issues?.length === 0
+            {!report.issues?.length
               ? <div className="flex items-center gap-2 text-green-700"><CheckCircle className="w-5 h-5" /> Sin hallazgos detectados</div>
-              : [...report.issues]
-                  .sort((a, b) => ({ critical: 0, warning: 1, info: 2 }[a.severity] - ({ critical: 0, warning: 1, info: 2 }[b.severity])))
-                  .map((issue, i) => <IssueRow key={i} issue={issue} />)
+              : [...report.issues].sort((a, b) => (SEV_ORDER[a.severity] ?? 9) - (SEV_ORDER[b.severity] ?? 9)).map((issue, i) => <IssueRow key={i} issue={issue} />)
             }
           </Section>
 
-          {/* Admins */}
           <Section icon={Users} title="Administradores" count={report.sections?.admin_users?.data?.length}>
             {report.sections?.admin_users?.issues?.map((i, idx) => <IssueRow key={idx} issue={i} />)}
-            <DataTable
-              headers={["Nombre", "Perfil", "Email", "MFA/OTP", "Restricción"]}
-              rows={report.sections?.admin_users?.data?.map((u) => [
-                u.name, u.profile, u.email,
-                u.otp_enabled ? "✅ Activo" : "❌ Inactivo",
-                u.login_restriction,
-              ])}
-            />
+            <DataTable headers={["Nombre", "Perfil", "Email", "MFA/OTP", "Restricción"]}
+              rows={report.sections?.admin_users?.data?.map(u => [u.name, u.profile, u.email, u.otp_enabled ? "✅ Activo" : "❌ Inactivo", u.login_restriction])} />
           </Section>
 
-          {/* Firewall rules */}
           <Section icon={Shield} title="Reglas de Firewall" count={report.sections?.firewall_rules?.stats?.total}>
             {report.sections?.firewall_rules?.issues?.map((i, idx) => <IssueRow key={idx} issue={i} />)}
             {report.sections?.firewall_rules?.stats && (
-              <div className="flex gap-4 text-sm text-gray-600 mb-3">
-                <span>Total: <b>{report.sections.firewall_rules.stats.total}</b></span>
-                <span>Activas: <b className="text-green-700">{report.sections.firewall_rules.stats.enabled}</b></span>
-                <span>Deshabilitadas: <b className="text-gray-500">{report.sections.firewall_rules.stats.disabled}</b></span>
-                <span>Sin log: <b className="text-yellow-600">{report.sections.firewall_rules.stats.no_log}</b></span>
-                <span>Any→Any: <b className="text-red-600">{report.sections.firewall_rules.stats.any_any}</b></span>
-                <span>Duplicadas: <b className="text-orange-600">{report.sections.firewall_rules.stats.duplicates}</b></span>
+              <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
+                {[["Total", report.sections.firewall_rules.stats.total, ""], ["Activas", report.sections.firewall_rules.stats.enabled, "text-green-700"],
+                  ["Deshabilitadas", report.sections.firewall_rules.stats.disabled, "text-gray-500"], ["Sin log", report.sections.firewall_rules.stats.no_log, "text-yellow-600"],
+                  ["Any→Any", report.sections.firewall_rules.stats.any_any, "text-red-600"], ["Duplicadas", report.sections.firewall_rules.stats.duplicates, "text-orange-600"]
+                ].map(([lbl, val, cls]) => <span key={lbl}>{lbl}: <b className={cls}>{val}</b></span>)}
               </div>
             )}
-            <DataTable
-              headers={["Nombre", "Estado", "Acción", "Src Zonas", "Dst Zonas", "Src Redes", "Dst Redes", "Log"]}
-              rows={report.sections?.firewall_rules?.data?.map((r) => [
-                r.name, r.status, r.action,
-                r.source_zones?.join(", "), r.destination_zones?.join(", "),
-                r.source_networks?.join(", "), r.destination_networks?.join(", "),
-                r.log_traffic,
-              ])}
-            />
+            <DataTable headers={["Nombre", "Estado", "Acción", "Src Zonas", "Dst Zonas", "Src Redes", "Dst Redes", "Log"]}
+              rows={report.sections?.firewall_rules?.data?.map(r => [r.name, r.status, r.action, r.source_zones?.join(", "), r.destination_zones?.join(", "), r.source_networks?.join(", "), r.destination_networks?.join(", "), r.log_traffic])} />
           </Section>
 
-          {/* NAT rules */}
           <Section icon={Globe} title="Reglas NAT" count={report.sections?.nat_rules?.stats?.total}>
             {report.sections?.nat_rules?.issues?.map((i, idx) => <IssueRow key={idx} issue={i} />)}
-            <DataTable
-              headers={["Nombre", "Estado", "Tipo NAT", "Zona Origen", "Orig Src", "Trans Src", "Orig Dst", "Trans Dst", "Log"]}
-              rows={report.sections?.nat_rules?.data?.map((r) => [
-                r.name, r.status, r.nat_type,
-                r.source_zones?.join(", "),
-                r.original_source, r.translated_source,
-                r.original_destination, r.translated_destination,
-                r.log_traffic,
-              ])}
-            />
+            <DataTable headers={["Nombre", "Estado", "Tipo NAT", "Zona Origen", "Orig Src", "Trans Src", "Orig Dst", "Trans Dst", "Log"]}
+              rows={report.sections?.nat_rules?.data?.map(r => [r.name, r.status, r.nat_type, r.source_zones?.join(", "), r.original_source, r.translated_source, r.original_destination, r.translated_destination, r.log_traffic])} />
           </Section>
 
-          {/* Hosts */}
           <Section icon={Server} title="Objetos de Red (Hosts)" count={report.sections?.hosts?.data?.length}>
             {report.sections?.hosts?.issues?.map((i, idx) => <IssueRow key={idx} issue={i} />)}
-            <DataTable
-              headers={["Nombre", "Tipo", "IP", "Subred"]}
-              rows={report.sections?.hosts?.data?.map((h) => [h.name, h.type, h.ip_address, h.subnet])}
-            />
+            <DataTable headers={["Nombre", "Tipo", "IP", "Subred"]}
+              rows={report.sections?.hosts?.data?.map(h => [h.name, h.type, h.ip_address, h.subnet])} />
           </Section>
 
-          {/* Zones */}
           <Section icon={List} title="Zonas de Red" count={report.sections?.zones?.data?.length}>
             {report.sections?.zones?.issues?.map((i, idx) => <IssueRow key={idx} issue={i} />)}
-            <DataTable
-              headers={["Nombre", "Tipo", "Descripción"]}
-              rows={report.sections?.zones?.data?.map((z) => [z.name, z.type, z.description])}
-            />
+            <DataTable headers={["Nombre", "Tipo", "Descripción"]}
+              rows={report.sections?.zones?.data?.map(z => [z.name, z.type, z.description])} />
           </Section>
 
-          {/* Web filter */}
+          <Section icon={Server} title="Interfaces" count={report.sections?.interfaces?.data?.length}>
+            <DataTable headers={["Nombre", "Tipo", "IP", "Máscara", "Zona", "Estado"]}
+              rows={report.sections?.interfaces?.data?.map(i => [i.name, i.type, i.ip_address, i.netmask, i.zone, i.status])} />
+          </Section>
+
           <Section icon={Shield} title="Políticas de Control Web" count={report.sections?.web_filter?.data?.length}>
-            <DataTable
-              headers={["Nombre", "Descripción", "Acción por defecto"]}
-              rows={report.sections?.web_filter?.data?.map((p) => [p.name, p.description, p.default_action])}
-            />
+            <DataTable headers={["Nombre", "Descripción", "Acción por defecto"]}
+              rows={report.sections?.web_filter?.data?.map(p => [p.name, p.description, p.default_action])} />
           </Section>
 
-          {/* App filter */}
           <Section icon={Shield} title="Políticas de Control de Aplicaciones" count={report.sections?.app_filter?.data?.length}>
-            <DataTable
-              headers={["Nombre", "Descripción"]}
-              rows={report.sections?.app_filter?.data?.map((p) => [p.name, p.description])}
-            />
+            <DataTable headers={["Nombre", "Descripción"]}
+              rows={report.sections?.app_filter?.data?.map(p => [p.name, p.description])} />
           </Section>
         </div>
+      )}
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Eliminar auditoría"
+          message="¿Eliminar este registro de auditoría? Se perderán todos los datos del reporte."
+          confirmLabel="Sí, eliminar"
+          onConfirm={handleDeleteAudit}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
     </div>
   );

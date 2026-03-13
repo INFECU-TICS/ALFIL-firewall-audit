@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.audit_report import AuditReport
 from app.models.connection import ConnectionConfig
 from app.schemas.connection import (
     ConnectionConfigCreate,
@@ -85,6 +86,8 @@ def delete_connection(connection_id: int, db: Session = Depends(get_db)):
     obj = db.query(ConnectionConfig).filter(ConnectionConfig.id == connection_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="Conexión no encontrada")
+    # Eliminar todo el historial de auditorías primero
+    db.query(AuditReport).filter(AuditReport.connection_id == connection_id).delete()
     db.delete(obj)
     db.commit()
 
