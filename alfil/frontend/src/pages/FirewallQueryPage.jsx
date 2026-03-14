@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Shield, Loader2, AlertCircle, Code, List, Copy, Check, Server,
-  ChevronDown, ChevronRight, RefreshCw, Users,
+  ChevronDown, ChevronRight, RefreshCw, Users, Globe, Layers, FileDown,
 } from "lucide-react";
 import { api } from "../api";
 
@@ -100,6 +100,80 @@ function InterfacesView({ data }) {
 }
 
 // ---------------------------------------------------------------------------
+// Renderer para Objetos de Host (IP / MAC / FQDN)
+// ---------------------------------------------------------------------------
+function HostObjectsView({ data }) {
+  if (!data) return <p className="text-sm text-gray-400 italic py-6 text-center">Sin datos</p>;
+  const { ip_hosts = [], mac_hosts = [], fqdn_hosts = [] } = data;
+
+  const Section = ({ title, color, rows, headers }) => {
+    const [open, setOpen] = useState(true);
+    if (!rows.length) return null;
+    return (
+      <div className="mb-4">
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="flex items-center gap-2 w-full text-left mb-2"
+        >
+          {open ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />}
+          <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${color}`}>
+            {title}
+          </span>
+          <span className="text-xs text-gray-400">{rows.length} registros</span>
+        </button>
+        {open && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs border-collapse">
+              <thead>
+                <tr>{headers.map(h => <th key={h} className="text-left px-3 py-2 bg-gray-50 text-gray-600 font-semibold border-b whitespace-nowrap">{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr key={i} className="border-b last:border-0 hover:bg-gray-50">
+                    {row.map((cell, j) => (
+                      <td key={j} className="px-3 py-2 text-gray-700 max-w-xs truncate" title={String(cell ?? "")}>{cell ?? "—"}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="overflow-y-auto space-y-2">
+      <Section
+        title="IP Hosts"
+        color="bg-blue-50 text-blue-700 border-blue-200"
+        headers={["Nombre", "Tipo", "Familia IP", "IP / Red", "Subred", "Rango inicio", "Rango fin", "Descripción"]}
+        rows={ip_hosts.map(h => [h.name, h.type, h.ip_family, h.ip_address, h.subnet, h.start_ip, h.end_ip, h.description])}
+      />
+      <Section
+        title="MAC Hosts"
+        color="bg-purple-50 text-purple-700 border-purple-200"
+        headers={["Nombre", "Tipo", "MAC address", "Lista MACs", "Descripción"]}
+        rows={mac_hosts.map(h => [
+          h.name,
+          h.type,
+          h.mac_address || "—",
+          h.mac_list?.length ? h.mac_list.join(", ") : "—",
+          h.description,
+        ])}
+      />
+      <Section
+        title="FQDN Hosts"
+        color="bg-green-50 text-green-700 border-green-200"
+        headers={["Nombre", "FQDN", "Grupos", "Descripción"]}
+        rows={fqdn_hosts.map(h => [h.name, h.fqdn, h.groups?.join(", ") || "—", h.description])}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Catálogo de consultas disponibles
 // ---------------------------------------------------------------------------
 const QUERIES = [
@@ -131,6 +205,29 @@ const QUERIES = [
     icon: Server,
     description: "Interfaces físicas con VLANs, Aliases y LAGs asociados",
     render: (data) => <InterfacesView data={data} />,
+  },
+  {
+    type: "host_objects",
+    label: "Objetos de Host",
+    icon: Globe,
+    description: "IP Hosts, MAC Hosts y FQDN Hosts",
+    render: (data) => <HostObjectsView data={data} />,
+  },
+  {
+    type: "services",
+    label: "Servicios",
+    icon: Layers,
+    description: "Objetos de servicio: HTTP, DNS, HTTPS y servicios personalizados",
+    headers: ["Nombre", "Tipo", "Protocolo", "Puerto origen", "Puerto destino", "ICMP Tipo", "ICMP Código"],
+    row: (r) => [
+      r.name,
+      r.type,
+      r.protocol || "—",
+      r.src_port || "Any",
+      r.dst_port || "—",
+      r.icmp_type || "—",
+      r.icmp_code || "—",
+    ],
   },
   {
     type: "users",
@@ -213,6 +310,57 @@ function CopyButton({ text }) {
       {copied ? "Copiado" : "Copiar"}
     </button>
   );
+}
+
+// ---------------------------------------------------------------------------
+// CSV export
+// ---------------------------------------------------------------------------
+function toCsvCell(val) {
+  const s = String(val ?? "");
+  return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function downloadCsv(filename, headers, rows) {
+  const lines = [headers, ...rows].map(r => r.map(toCsvCell).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + lines], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportCsv(query, result, connectionName) {
+  const date = new Date().toISOString().slice(0, 10);
+  const base = `${connectionName ? connectionName + "_" : ""}${query.type}_${date}`;
+
+  if (query.type === "interface_info") {
+    const headers = ["Interfaz", "Hardware", "Zona", "Estado", "IP", "Máscara", "Asignación", "MTU", "Tipo sub-item", "Nombre sub-item", "Detalle"];
+    const rows = [];
+    result.data?.forEach(iface => {
+      rows.push([iface.name, iface.hardware, iface.zone, iface.interface_status, iface.ip_address, iface.netmask, iface.ipv4_assignment, iface.mtu, "", "", ""]);
+      iface.vlans?.forEach(v => rows.push([iface.name, "", "", "", "", "", "", "", "VLAN", v.name, `ID:${v.vlan_id} Zone:${v.zone} IP:${v.ip_address}`]));
+      iface.aliases?.forEach(a => rows.push([iface.name, "", "", "", "", "", "", "", "Alias", a.name, `IP:${a.ip_address}/${a.netmask}`]));
+      iface.lags?.forEach(l => rows.push([iface.name, "", "", "", "", "", "", "", "LAG", l.name, l.members?.join(";") || ""]));
+    });
+    return downloadCsv(`${base}.csv`, headers, rows);
+  }
+
+  if (query.type === "host_objects") {
+    const headers = ["Tipo", "Nombre", "Descripción", "Familia IP", "Tipo host", "IP / Red", "Subred", "Rango inicio", "Rango fin", "MAC", "Lista MACs", "FQDN", "Grupos"];
+    const rows = [];
+    result.data?.ip_hosts?.forEach(h => rows.push(["IP Host", h.name, h.description, h.ip_family, h.type, h.ip_address, h.subnet, h.start_ip, h.end_ip, "", "", "", ""]));
+    result.data?.mac_hosts?.forEach(h => rows.push(["MAC Host", h.name, h.description, "", h.type, "", "", "", "", h.mac_address, h.mac_list?.join(";"), "", ""]));
+    result.data?.fqdn_hosts?.forEach(h => rows.push(["FQDN Host", h.name, h.description, "", "", "", "", "", "", "", "", h.fqdn, h.groups?.join(";")]));
+    return downloadCsv(`${base}.csv`, headers, rows);
+  }
+
+  // Tabla estándar (firewall_rules, services, users, …)
+  if (query.headers && query.row) {
+    const rows = (Array.isArray(result.data) ? result.data : []).map((r, i) => query.row(r, i));
+    return downloadCsv(`${base}.csv`, query.headers, rows);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -361,8 +509,15 @@ export default function FirewallQueryPage() {
               <div className="flex items-center gap-3 mb-4 pb-4 border-b">
                 <div className="flex-1">
                   <h2 className="font-semibold text-gray-800">{activeQuery.label}</h2>
-                  <p className="text-xs text-gray-400">{result.count ?? result.data?.length} registros</p>
+                  <p className="text-xs text-gray-400">{result.count ?? (Array.isArray(result.data) ? result.data.length : "—")} registros</p>
                 </div>
+                <button
+                  onClick={() => exportCsv(activeQuery, result, connectionName)}
+                  title="Exportar a CSV"
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-green-700 hover:border-green-200 transition-colors"
+                >
+                  <FileDown className="w-3.5 h-3.5" />
+                </button>
                 <button
                   onClick={() => fetchQuery(activeQuery)}
                   disabled={loading}

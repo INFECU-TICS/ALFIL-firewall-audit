@@ -28,7 +28,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <Shield className="w-7 h-7 text-brand-100" />
             <span className="text-xl font-bold tracking-tight">ALFIL</span>
-            <span className="text-brand-100 text-sm hidden sm:block">– Firewall Audit</span>
+            <span className="text-brand-100 text-sm hidden sm:block">– Automated Layered Firewall Inspection &amp; Logic</span>
           </div>
           <nav className="flex gap-1 ml-auto">
             <NavItem to="/">
@@ -47,8 +47,9 @@ export default function App() {
         </Routes>
       </main>
 
-      <footer className="text-center text-xs text-gray-400 py-4">
-        ALFIL – Automated Layered Firewall Inspection &amp; Logic
+      <footer className="text-center text-xs text-gray-400 py-4 border-t border-gray-100">
+        <p className="font-medium text-gray-500">ALFIL – Automated Layered Firewall Inspection &amp; Logic</p>
+        <p className="mt-0.5">&reg; INFORC ECUADOR 2026 &mdash; 4r2</p>
       </footer>
     </div>
   );

@@ -88,6 +88,8 @@ class SophosFirewallClient:
         "firewall_rules": "FirewallRule",
         "interface_info": None,  # multi-entity, manejado en run_query
         "users": "User",
+        "host_objects": None,   # multi-entity: IPHost + MACHost + FQDNHost
+        "services": "Services",
     }
 
     def run_query(self, query_type: str) -> Dict[str, Any]:
@@ -255,6 +257,122 @@ class SophosFirewallClient:
                     "login_restriction": u.get("LoginRestriction", ""),
                     "simultaneous_logins": u.get("SimultaneousLoginsGlobal", ""),
                 })
+            return {"success": True, "raw_xml": raw_xml, "data": parsed, "count": len(parsed)}
+
+        # ---- Host Objects (IPHost + MACHost + FQDNHost) ----
+        if query_type == "host_objects":
+            with ThreadPoolExecutor(max_workers=3) as ex:
+                f_ip   = ex.submit(self._make_request_with_raw, self._build_xml("IPHost"))
+                f_mac  = ex.submit(self._make_request_with_raw, self._build_xml("MACHost"))
+                f_fqdn = ex.submit(self._make_request_with_raw, self._build_xml("FQDNHost"))
+
+            ok_ip,   res_ip,   xml_ip   = f_ip.result()
+            ok_mac,  res_mac,  xml_mac  = f_mac.result()
+            ok_fqdn, res_fqdn, xml_fqdn = f_fqdn.result()
+
+            ip_hosts = self._to_list(res_ip.get("Response", {}).get("IPHost"))     if ok_ip   else []
+            mac_hosts = self._to_list(res_mac.get("Response", {}).get("MACHost"))   if ok_mac  else []
+            fqdn_hosts = self._to_list(res_fqdn.get("Response", {}).get("FQDNHost")) if ok_fqdn else []
+
+            parsed_ip = []
+            for h in ip_hosts:
+                if not isinstance(h, dict):
+                    continue
+                parsed_ip.append({
+                    "name": h.get("Name", ""),
+                    "description": h.get("Description", ""),
+                    "ip_family": h.get("IPFamily", ""),
+                    "type": h.get("HostType", ""),
+                    "ip_address": h.get("IPAddress", ""),
+                    "subnet": h.get("Subnet", ""),
+                    "start_ip": h.get("StartIPAddress", ""),
+                    "end_ip": h.get("EndIPAddress", ""),
+                })
+
+            parsed_mac = []
+            for h in mac_hosts:
+                if not isinstance(h, dict):
+                    continue
+                mac_list_raw = h.get("MACList", {})
+                macs = self._to_list(mac_list_raw.get("MACAddress")) if isinstance(mac_list_raw, dict) else []
+                parsed_mac.append({
+                    "name": h.get("Name", ""),
+                    "description": h.get("Description", ""),
+                    "type": h.get("Type", ""),
+                    "mac_address": h.get("MACAddress", ""),
+                    "mac_list": [m if isinstance(m, str) else str(m) for m in macs],
+                })
+
+            parsed_fqdn = []
+            for h in fqdn_hosts:
+                if not isinstance(h, dict):
+                    continue
+                group_list = h.get("FQDNHostGroupList", {})
+                groups = self._to_list(group_list.get("FQDNHostGroup")) if isinstance(group_list, dict) else []
+                parsed_fqdn.append({
+                    "name": h.get("Name", ""),
+                    "fqdn": h.get("FQDN", ""),
+                    "description": h.get("Description", ""),
+                    "groups": [g if isinstance(g, str) else str(g) for g in groups],
+                })
+
+            combined_xml = (
+                f"<!-- IPHost -->\n{xml_ip}\n\n"
+                f"<!-- MACHost -->\n{xml_mac}\n\n"
+                f"<!-- FQDNHost -->\n{xml_fqdn}"
+            )
+            return {
+                "success": True,
+                "raw_xml": combined_xml,
+                "data": {
+                    "ip_hosts": parsed_ip,
+                    "mac_hosts": parsed_mac,
+                    "fqdn_hosts": parsed_fqdn,
+                },
+                "count": len(parsed_ip) + len(parsed_mac) + len(parsed_fqdn),
+            }
+
+        # ---- Services ----
+        if query_type == "services":
+            xml = self._build_xml("Services")
+            success, result, raw_xml = self._make_request_with_raw(xml)
+            if not success:
+                return {"success": False, "error": result.get("error"), "raw_xml": raw_xml}
+            services = self._to_list(result.get("Response", {}).get("Services"))
+            parsed = []
+            for s in services:
+                if not isinstance(s, dict):
+                    continue
+                name = s.get("Name", "")
+                svc_type = s.get("Type", "")
+                # ServiceDetails puede tener uno o varios ServiceDetail
+                details_wrap = s.get("ServiceDetails", {})
+                details_raw = details_wrap.get("ServiceDetail", []) if isinstance(details_wrap, dict) else []
+                details = self._to_list(details_raw)
+                if details:
+                    for d in details:
+                        if not isinstance(d, dict):
+                            continue
+                        parsed.append({
+                            "name": name,
+                            "type": svc_type,
+                            "protocol": d.get("Protocol", ""),
+                            "src_port": d.get("SourcePort", "Any"),
+                            "dst_port": d.get("DestinationPort", ""),
+                            "icmp_type": d.get("ICMPType", ""),
+                            "icmp_code": d.get("ICMPCode", ""),
+                        })
+                else:
+                    # Servicio sin detalles (ej: ANY)
+                    parsed.append({
+                        "name": name,
+                        "type": svc_type,
+                        "protocol": "",
+                        "src_port": "",
+                        "dst_port": "",
+                        "icmp_type": "",
+                        "icmp_code": "",
+                    })
             return {"success": True, "raw_xml": raw_xml, "data": parsed, "count": len(parsed)}
 
         return {"success": True, "raw_xml": "", "data": []}
