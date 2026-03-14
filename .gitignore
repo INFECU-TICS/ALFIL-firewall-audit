@@ -45,3 +45,7 @@ docker-compose.override.yml
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Ejemplos de respuestas de API (referencia local)
+.example_responses/
+

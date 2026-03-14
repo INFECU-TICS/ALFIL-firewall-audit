@@ -2,6 +2,7 @@ import { Routes, Route, NavLink } from "react-router-dom";
 import { Shield, Server } from "lucide-react";
 import ConnectionsPage from "./pages/ConnectionsPage";
 import AuditPage from "./pages/AuditPage";
+import FirewallQueryPage from "./pages/FirewallQueryPage";
 
 function NavItem({ to, children }) {
   return (
@@ -42,6 +43,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<ConnectionsPage />} />
           <Route path="/audit/:id" element={<AuditPage />} />
+          <Route path="/query/:id" element={<FirewallQueryPage />} />
         </Routes>
       </main>
 

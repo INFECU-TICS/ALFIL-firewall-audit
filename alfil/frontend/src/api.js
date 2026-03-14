@@ -21,6 +21,7 @@ export const api = {
   deleteConnection:    (id)       => request("DELETE", `/connections/${id}`),
   testNewConnection:   (data)     => request("POST",   "/connections/test", data),
   testSavedConnection: (id)       => request("POST",   `/connections/${id}/test`),
+  queryFirewall:       (id, type) => request("POST",   `/connections/${id}/query`, { query_type: type }),
 
   // Auditoría — ejecución e historial
   startAudit:    (connectionId) => request("POST", `/audit/${connectionId}/start`),

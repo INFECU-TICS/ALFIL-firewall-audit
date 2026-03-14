@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, Play, Wifi, WifiOff, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Play, Wifi, WifiOff, Loader2, AlertCircle, Database } from "lucide-react";
 import { api } from "../api";
 import Modal from "../components/Modal";
 import ConfirmModal from "../components/ConfirmModal";
@@ -118,10 +118,13 @@ export default function ConnectionsPage() {
                   </div>
                 )}
 
-                <div className="flex gap-2 mt-auto pt-2 border-t border-gray-100">
+                <div className="flex gap-2 mt-auto pt-2 border-t border-gray-100 flex-wrap">
                   <button className="btn-secondary text-xs py-1.5 px-3 flex-1" onClick={() => handleTest(conn.id)} disabled={testingId === conn.id}>
                     {testingId === conn.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wifi className="w-3.5 h-3.5" />}
                     Probar
+                  </button>
+                  <button className="btn-secondary text-xs py-1.5 px-3 flex-1" onClick={() => navigate(`/query/${conn.id}`)}>
+                    <Database className="w-3.5 h-3.5" /> Obtener Info
                   </button>
                   <button className="btn-primary text-xs py-1.5 px-3 flex-1" onClick={() => navigate(`/audit/${conn.id}`)}>
                     <Play className="w-3.5 h-3.5" /> Auditar

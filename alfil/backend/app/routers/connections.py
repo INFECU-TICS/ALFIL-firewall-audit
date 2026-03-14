@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -112,6 +113,30 @@ def test_new_connection(payload: ConnectionTestRequest):
         message=result.get("message", ""),
         details={k: v for k, v in result.items() if k not in ("success", "message")},
     )
+
+
+class FirewallQueryRequest(BaseModel):
+    query_type: str
+
+
+@router.post("/{connection_id}/query")
+def query_firewall(connection_id: int, payload: FirewallQueryRequest, db: Session = Depends(get_db)):
+    """Ejecuta una consulta directa al firewall y devuelve XML raw + datos parseados."""
+    obj = db.query(ConnectionConfig).filter(ConnectionConfig.id == connection_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Conexión no encontrada")
+
+    client = SophosFirewallClient(
+        host=obj.host,
+        port=obj.port,
+        username=obj.username,
+        password=_decrypt(obj.password_encrypted),
+        verify_ssl=obj.verify_ssl,
+    )
+    result = client.run_query(payload.query_type)
+    if not result.get("success"):
+        raise HTTPException(status_code=502, detail=result.get("error", "Error al consultar el firewall"))
+    return result
 
 
 @router.post("/{connection_id}/test", response_model=ConnectionTestResponse)

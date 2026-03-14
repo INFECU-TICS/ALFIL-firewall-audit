@@ -50,18 +50,14 @@ def _analyze_device_access(data: dict, zones: list[dict]) -> list[dict]:
     for acl in acls:
         if not isinstance(acl, dict):
             continue
-        zone = acl.get("Zone", acl.get("@zone", ""))
+        # Con la nueva estructura parseada, el campo es 'source_zone'
+        zone = acl.get("source_zone", acl.get("SourceZone", ""))
         if zone.lower() in WAN_ZONE_KEYWORDS or zone in wan_zone_names:
-            services_node = acl.get("Services", {})
-            enabled_services = []
-            if isinstance(services_node, dict):
-                for svc, val in services_node.items():
-                    if str(val).lower() in ("enable", "enabled", "true"):
-                        enabled_services.append(svc)
-            elif isinstance(services_node, list):
-                enabled_services = [s.get("@name", str(s)) for s in services_node]
-
-            risky = [s for s in enabled_services if any(k in s.lower() for k in ("webadmin", "ssh", "console", "admin", "https", "api"))]
+            # Los servicios ya vienen como lista de strings
+            services = acl.get("services", [])
+            if not isinstance(services, list):
+                services = []
+            risky = [s for s in services if any(k in s.lower() for k in ("webadmin", "ssh", "console", "admin", "https", "api"))]
             if risky:
                 issues.append(_issue(
                     CRITICAL, "device_access",
@@ -166,29 +162,28 @@ def _analyze_firewall_rules(data: dict) -> tuple[list[dict], dict]:
 def _analyze_nat_rules(data: dict) -> tuple[list[dict], dict]:
     rules = data.get("nat_rules", {}).get("data", [])
     issues = []
-    stats = {"total": len(rules), "enabled": 0, "disabled": 0, "no_log": 0}
+    stats = {"total": len(rules), "enabled": 0, "disabled": 0, "dnat": 0, "snat": 0, "masq": 0}
 
     for r in rules:
+        name = r.get("name", "?")
         if r.get("status", "").lower() in ("enable", "enabled"):
             stats["enabled"] += 1
         else:
             stats["disabled"] += 1
-            issues.append(_issue(INFO, "nat_rules", f"Regla NAT deshabilitada: '{r['name']}'",
-                                 "Revisar si es obsoleta.", r["name"]))
+            issues.append(_issue(INFO, "nat_rules", f"Regla NAT deshabilitada: '{name}'",
+                                 "Revisar si es obsoleta.", name))
 
-        if r.get("log_traffic", "Disable").lower() in ("disable", "disabled", ""):
-            stats["no_log"] += 1
-            issues.append(_issue(INFO, "nat_rules", f"Regla NAT sin logging: '{r['name']}'",
-                                 "Habilitar logging en reglas NAT facilita la trazabilidad.", r["name"]))
-
-        # DNAT expuesto a WAN
-        src_zones = [z.lower() for z in r.get("source_zones", [])]
-        is_from_wan = any(k in z for z in src_zones for k in WAN_ZONE_KEYWORDS)
-        if is_from_wan and r.get("nat_type", "").upper() in ("DNAT", ""):
-            issues.append(_issue(WARNING, "nat_rules",
-                                 f"Regla DNAT desde zona WAN: '{r['name']}'",
-                                 f"Publica internamente hacia {r.get('translated_destination', '?')}. Verificar que sea intencional y seguro.",
-                                 r["name"]))
+        nat_type = r.get("nat_type", "")
+        if nat_type == "DNAT":
+            stats["dnat"] += 1
+            issues.append(_issue(INFO, "nat_rules",
+                                 f"Publicación DNAT: '{name}'",
+                                 f"Publica hacia {r.get('translated_destination', '?')} desde interfaz(es): {', '.join(r.get('inbound_interfaces', [])) or 'cualquiera'}. Verificar que sea intencional.",
+                                 name))
+        elif nat_type == "MASQ":
+            stats["masq"] += 1
+        elif nat_type == "SNAT":
+            stats["snat"] += 1
 
     return issues, stats
 
@@ -196,7 +191,7 @@ def _analyze_nat_rules(data: dict) -> tuple[list[dict], dict]:
 def _analyze_zones(data: dict) -> list[dict]:
     zones = data.get("zones", {}).get("data", [])
     issues = []
-    wan_zones = [z for z in zones if z.get("type", "").lower() == "wan" or z["name"].lower() in WAN_ZONE_KEYWORDS]
+    wan_zones = [z for z in zones if z.get("type", "").lower() == "wan" or z.get("name", "").lower() in WAN_ZONE_KEYWORDS]
     if not wan_zones:
         issues.append(_issue(INFO, "zones", "No se identificaron zonas WAN", "Verificar la tipología de zonas del equipo."))
     return issues
@@ -206,17 +201,21 @@ def _analyze_hosts(data: dict, firewall_rules: list[dict], nat_rules: list[dict]
     """Detecta hosts definidos que no se usan en ninguna regla."""
     issues = []
     hosts = data.get("hosts", {}).get("data", [])
-    host_names = {h["name"] for h in hosts}
+    host_names = {h.get("name", "") for h in hosts if h.get("name", "")}
 
     used: set[str] = set()
     for r in firewall_rules:
         used.update(r.get("source_networks", []))
         used.update(r.get("destination_networks", []))
     for r in nat_rules:
-        for field in ("original_source", "translated_source", "original_destination", "translated_destination"):
+        for field in ("translated_source", "translated_destination"):
             val = r.get(field, "")
-            if val:
+            if val and val not in ("Original", "MASQ"):
                 used.add(val)
+        for net in r.get("original_source_networks", []):
+            used.add(net)
+        for net in r.get("original_destination_networks", []):
+            used.add(net)
 
     unused = host_names - used - {"Any", ""}
     for h in sorted(unused):
@@ -232,6 +231,89 @@ def _analyze_notifications(data: dict) -> list[dict]:
         issues.append(_issue(WARNING, "notifications", "Sin notificaciones configuradas",
                              "Configurar alertas de eventos críticos (ataques, caídas de interfaz, login fallido)."))
     return issues
+
+
+# ---------------------------------------------------------------------------
+# Consolidación de interfaces con VLANs y Aliases
+# ---------------------------------------------------------------------------
+
+def _build_consolidated_interfaces(interfaces: list, vlans: list, aliases: list, zones: list) -> list:
+    """
+    Une interfaces físicas con sus VLANs y Aliases asociados.
+    Agrega la zona como tag lookup desde la lista de zonas.
+    """
+    zone_types = {z.get("name", ""): z.get("type", "") for z in zones}
+
+    # Mapa de VLANs y Aliases por interfaz padre
+    vlan_map: dict[str, list] = {}
+    for v in vlans:
+        parent = v.get("interface", v.get("Interface", ""))
+        vlan_map.setdefault(parent, []).append(v)
+
+    alias_map: dict[str, list] = {}
+    for a in aliases:
+        parent = a.get("interface", a.get("Interface", ""))
+        alias_map.setdefault(parent, []).append(a)
+
+    result = []
+    for iface in interfaces:
+        name = iface.get("name", "")
+        zone = iface.get("zone", "")
+        result.append({
+            **iface,
+            "zone_type": zone_types.get(zone, ""),
+            "vlans": vlan_map.get(name, []),
+            "aliases": alias_map.get(name, []),
+        })
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Agrupador de reglas por grupo
+# ---------------------------------------------------------------------------
+
+def _build_grouped_rules(rules: list[dict], groups: list[dict]) -> dict:
+    """
+    Devuelve un dict ordenado: {group_name: [rule_summary, ...]}
+    Las reglas sin grupo van en "Sin grupo".
+    """
+    # Mapa: policy_name → group_name
+    rule_to_group: dict[str, str] = {}
+    group_order: list[str] = []
+    for g in groups:
+        gname = g.get("name", "")
+        if gname and gname not in group_order:
+            group_order.append(gname)
+        for policy in g.get("policies", []):
+            rule_to_group[policy] = gname
+
+    grouped: dict[str, list] = {g: [] for g in group_order}
+    grouped["Sin grupo"] = []
+
+    for r in rules:
+        rname = r.get("name", "")
+        gname = rule_to_group.get(rname, "Sin grupo")
+        if gname not in grouped:
+            grouped[gname] = []
+        grouped[gname].append({
+            "name": rname,
+            "description": r.get("description", ""),
+            "status": r.get("status", ""),
+            "policy_type": r.get("policy_type", ""),
+            "action": r.get("action", ""),
+            "log_traffic": r.get("log_traffic", ""),
+            "source_zones": r.get("source_zones", []),
+            "destination_zones": r.get("destination_zones", []),
+            "source_networks": r.get("source_networks", []),
+            "destination_networks": r.get("destination_networks", []),
+            "services": r.get("services", []),
+            "web_filter": r.get("web_filter", ""),
+            "application_control": r.get("application_control", ""),
+            "intrusion_prevention": r.get("intrusion_prevention", ""),
+        })
+
+    # Eliminar grupos vacíos (excepto "Sin grupo" si tiene entradas)
+    return {k: v for k, v in grouped.items() if v}
 
 
 # ---------------------------------------------------------------------------
@@ -301,27 +383,92 @@ def generate_audit_report(connection_info: dict, raw_data: dict) -> dict:
         },
         "issues": all_issues,
         "sections": {
+            # Usuarios y acceso
             "admin_users": {
                 "data": raw_data.get("admin_users", {}).get("data", []),
                 "issues": admin_issues + access_issues,
             },
+            "auth_users": {
+                "data": raw_data.get("auth_users", {}).get("data", []),
+            },
+            "device_access": {
+                "data": raw_data.get("device_access", {}).get("data", []),
+            },
+            # Reglas
             "firewall_rules": {
                 "stats": fw_stats,
                 "data": raw_data.get("firewall_rules", {}).get("data", []),
                 "issues": fw_issues,
+            },
+            "firewall_rule_groups": {
+                "data": raw_data.get("firewall_rule_groups", {}).get("data", []),
+            },
+            "grouped_firewall_rules": {
+                "data": _build_grouped_rules(
+                    raw_data.get("firewall_rules", {}).get("data", []),
+                    raw_data.get("firewall_rule_groups", {}).get("data", []),
+                ),
             },
             "nat_rules": {
                 "stats": nat_stats,
                 "data": raw_data.get("nat_rules", {}).get("data", []),
                 "issues": nat_issues,
             },
+            "ssl_tls_rules": {
+                "data": raw_data.get("ssl_tls_rules", {}).get("data", []),
+            },
+            "ssl_tls_settings": {
+                "data": raw_data.get("ssl_tls_settings", {}).get("data"),
+            },
+            # Red
             "zones": {
                 "data": zones_data,
                 "issues": zone_issues,
             },
             "interfaces": {
-                "data": raw_data.get("interfaces", {}).get("data", []),
+                "data": _build_consolidated_interfaces(
+                    raw_data.get("interfaces", {}).get("data", []),
+                    raw_data.get("vlans", {}).get("data", []),
+                    raw_data.get("aliases", {}).get("data", []),
+                    zones_data,
+                ),
             },
+            "vlans": {
+                "data": raw_data.get("vlans", {}).get("data", []),
+            },
+            "aliases": {
+                "data": raw_data.get("aliases", {}).get("data", []),
+            },
+            "lags": {
+                "data": raw_data.get("lags", {}).get("data", []),
+            },
+            "dns": {
+                "data": raw_data.get("dns", {}).get("data"),
+            },
+            "dns_request_routes": {
+                "data": raw_data.get("dns_request_routes", {}).get("data", []),
+            },
+            "gateways": {
+                "data": raw_data.get("gateways", {}).get("data"),
+            },
+            # Enrutamiento
+            "static_routes": {
+                "data": raw_data.get("static_routes", {}).get("data", []),
+            },
+            "sdwan_policy_routes": {
+                "data": raw_data.get("sdwan_policy_routes", {}).get("data", []),
+            },
+            "sdwan_profiles": {
+                "data": raw_data.get("sdwan_profiles", {}).get("data", []),
+            },
+            "health_check_profiles": {
+                "data": raw_data.get("health_check_profiles", {}).get("data", []),
+            },
+            # VPN
+            "vpn_ipsec_connections": {
+                "data": raw_data.get("vpn_ipsec_connections", {}).get("data", []),
+            },
+            # Objetos de red
             "hosts": {
                 "data": raw_data.get("hosts", {}).get("data", []),
                 "issues": host_issues,
@@ -329,15 +476,55 @@ def generate_audit_report(connection_info: dict, raw_data: dict) -> dict:
             "host_groups": {
                 "data": raw_data.get("host_groups", {}).get("data", []),
             },
+            "mac_hosts": {
+                "data": raw_data.get("mac_hosts", {}).get("data", []),
+            },
+            "fqdn_hosts": {
+                "data": raw_data.get("fqdn_hosts", {}).get("data", []),
+            },
+            "fqdn_host_groups": {
+                "data": raw_data.get("fqdn_host_groups", {}).get("data", []),
+            },
+            # Servicios
             "services": {
                 "data": raw_data.get("services", {}).get("data", []),
             },
+            "service_groups": {
+                "data": raw_data.get("service_groups", {}).get("data", []),
+            },
+            # Políticas de contenido
             "web_filter": {
                 "data": raw_data.get("web_filter_policies", {}).get("data", []),
+            },
+            "web_filter_exceptions": {
+                "data": raw_data.get("web_filter_exceptions", {}).get("data", []),
             },
             "app_filter": {
                 "data": raw_data.get("app_filter_policies", {}).get("data", []),
             },
+            # Políticas de administración
+            "auth_users": {
+                "data": raw_data.get("auth_users", {}).get("data", []),
+            },
+            "schedules": {
+                "data": raw_data.get("schedules", {}).get("data", []),
+            },
+            "decryption_profiles": {
+                "data": raw_data.get("decryption_profiles", {}).get("data", []),
+            },
+            "access_time_policies": {
+                "data": raw_data.get("access_time_policies", {}).get("data", []),
+            },
+            "surfing_quota_policies": {
+                "data": raw_data.get("surfing_quota_policies", {}).get("data", []),
+            },
+            "data_transfer_policies": {
+                "data": raw_data.get("data_transfer_policies", {}).get("data", []),
+            },
+            "backup_restore": {
+                "data": raw_data.get("backup_restore", {}).get("data"),
+            },
+            # Notificaciones
             "notifications": {
                 "data": raw_data.get("notification_settings", {}).get("data", []),
                 "issues": notif_issues,

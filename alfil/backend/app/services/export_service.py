@@ -244,12 +244,92 @@ def generate_pdf(report: dict) -> io.BytesIO:
 # ZIP
 # ---------------------------------------------------------------------------
 
+# Mapeo de sección del reporte → nombre de archivo JSON en el ZIP
+_SECTION_JSON_FILES = {
+    "admin_users":            "admin_users.json",
+    "auth_users":             "auth_users.json",
+    "device_access":          "local_acl.json",
+    "zones":                  "zones.json",
+    "interfaces":             "interfaces.json",
+    "vlans":                  "vlans.json",
+    "aliases":                "aliases.json",
+    "lags":                   "lags.json",
+    "dns":                    "dns.json",
+    "dns_request_routes":     "dns_routes.json",
+    "gateways":               "gateways.json",
+    "static_routes":          "static_routes.json",
+    "sdwan_policy_routes":    "sdwan_routes.json",
+    "sdwan_profiles":         "sdwan_profiles.json",
+    "health_check_profiles":  "health_checks.json",
+    "hosts":                  "ip_hosts.json",
+    "host_groups":            "ip_host_groups.json",
+    "mac_hosts":              "mac_hosts.json",
+    "fqdn_hosts":             "fqdn_hosts.json",
+    "fqdn_host_groups":       "fqdn_host_groups.json",
+    "services":               "services.json",
+    "service_groups":         "service_groups.json",
+    "firewall_rules":         "fw_rules.json",
+    "firewall_rule_groups":   "fw_rule_groups.json",
+    "nat_rules":              "nat_rules.json",
+    "ssl_tls_rules":          "ssl_tls_rules.json",
+    "ssl_tls_settings":       "ssl_tls_settings.json",
+    "web_filter":             "web_filter_policies.json",
+    "web_filter_exceptions":  "web_filter_exceptions.json",
+    "app_filter":             "app_filter_policies.json",
+    "vpn_ipsec_connections":  "vpn_ipsec.json",
+    "schedules":              "schedules.json",
+    "decryption_profiles":    "decryption_profiles.json",
+    "access_time_policies":   "access_time_policies.json",
+    "surfing_quota_policies":  "surfing_quotas.json",
+    "data_transfer_policies":  "data_transfer_policies.json",
+    "backup_restore":          "backup_restore.json",
+    "notifications":           "notifications.json",
+}
+
+
+def _extract_raw_data(section_data) -> list | dict | None:
+    """
+    Extrae los datos crudos de una sección del reporte para exportar al ZIP.
+    - Si es una lista de objetos con campo 'raw', devuelve la lista de 'raw'.
+    - Si es una lista sin 'raw', devuelve la lista tal cual.
+    - Si es un dict (ej. configuración global), lo devuelve tal cual.
+    """
+    if section_data is None:
+        return None
+    if isinstance(section_data, dict):
+        return section_data
+    if isinstance(section_data, list):
+        if section_data and isinstance(section_data[0], dict) and "raw" in section_data[0]:
+            return [item["raw"] for item in section_data]
+        return section_data
+    return section_data
+
+
 def generate_zip(report: dict, connection_name: str) -> io.BytesIO:
     buf = io.BytesIO()
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    sections = report.get("sections", {})
+
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        # Reporte completo
         zf.writestr(f"alfil_audit_{connection_name}_{ts}.json",
                     json.dumps(report, ensure_ascii=False, indent=2, default=str))
+
+        # Archivos JSON individuales por entidad
+        for section_key, filename in _SECTION_JSON_FILES.items():
+            sec = sections.get(section_key, {})
+            raw = _extract_raw_data(sec.get("data"))
+            if raw is None:
+                continue
+            try:
+                zf.writestr(
+                    f"data/{filename}",
+                    json.dumps(raw, ensure_ascii=False, indent=2, default=str),
+                )
+            except Exception:
+                pass
+
+        # Excel y PDF
         try:
             excel_buf = generate_excel(report)
             zf.writestr(f"alfil_audit_{connection_name}_{ts}.xlsx", excel_buf.read())
@@ -260,5 +340,6 @@ def generate_zip(report: dict, connection_name: str) -> io.BytesIO:
             zf.writestr(f"alfil_audit_{connection_name}_{ts}.pdf", pdf_buf.read())
         except Exception:
             pass
+
     buf.seek(0)
     return buf

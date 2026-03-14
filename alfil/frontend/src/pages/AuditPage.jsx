@@ -3,7 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Play, Download, FileSpreadsheet, FileText, FileArchive,
   Loader2, AlertCircle, CheckCircle, ChevronDown, ChevronRight,
-  Shield, Users, Globe, Server, List, FileWarning, Trash2, Eye, Clock
+  Users, Server, FileWarning, Trash2, Eye, Clock,
+  Route, Settings
 } from "lucide-react";
 import { api } from "../api";
 import { SeverityBadge, ScoreRing } from "../components/IssuesBadge";
@@ -369,51 +370,63 @@ export default function AuditPage() {
               rows={report.sections?.admin_users?.data?.map(u => [u.name, u.profile, u.email, u.otp_enabled ? "✅ Activo" : "❌ Inactivo", u.login_restriction])} />
           </Section>
 
-          <Section icon={Shield} title="Reglas de Firewall" count={report.sections?.firewall_rules?.stats?.total}>
-            {report.sections?.firewall_rules?.issues?.map((i, idx) => <IssueRow key={idx} issue={i} />)}
-            {report.sections?.firewall_rules?.stats && (
-              <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
-                {[["Total", report.sections.firewall_rules.stats.total, ""], ["Activas", report.sections.firewall_rules.stats.enabled, "text-green-700"],
-                  ["Deshabilitadas", report.sections.firewall_rules.stats.disabled, "text-gray-500"], ["Sin log", report.sections.firewall_rules.stats.no_log, "text-yellow-600"],
-                  ["Any→Any", report.sections.firewall_rules.stats.any_any, "text-red-600"], ["Duplicadas", report.sections.firewall_rules.stats.duplicates, "text-orange-600"]
-                ].map(([lbl, val, cls]) => <span key={lbl}>{lbl}: <b className={cls}>{val}</b></span>)}
-              </div>
-            )}
-            <DataTable headers={["Nombre", "Estado", "Acción", "Src Zonas", "Dst Zonas", "Src Redes", "Dst Redes", "Log"]}
-              rows={report.sections?.firewall_rules?.data?.map(r => [r.name, r.status, r.action, r.source_zones?.join(", "), r.destination_zones?.join(", "), r.source_networks?.join(", "), r.destination_networks?.join(", "), r.log_traffic])} />
-          </Section>
-
-          <Section icon={Globe} title="Reglas NAT" count={report.sections?.nat_rules?.stats?.total}>
-            {report.sections?.nat_rules?.issues?.map((i, idx) => <IssueRow key={idx} issue={i} />)}
-            <DataTable headers={["Nombre", "Estado", "Tipo NAT", "Zona Origen", "Orig Src", "Trans Src", "Orig Dst", "Trans Dst", "Log"]}
-              rows={report.sections?.nat_rules?.data?.map(r => [r.name, r.status, r.nat_type, r.source_zones?.join(", "), r.original_source, r.translated_source, r.original_destination, r.translated_destination, r.log_traffic])} />
-          </Section>
-
-          <Section icon={Server} title="Objetos de Red (Hosts)" count={report.sections?.hosts?.data?.length}>
-            {report.sections?.hosts?.issues?.map((i, idx) => <IssueRow key={idx} issue={i} />)}
-            <DataTable headers={["Nombre", "Tipo", "IP", "Subred"]}
-              rows={report.sections?.hosts?.data?.map(h => [h.name, h.type, h.ip_address, h.subnet])} />
-          </Section>
-
-          <Section icon={List} title="Zonas de Red" count={report.sections?.zones?.data?.length}>
-            {report.sections?.zones?.issues?.map((i, idx) => <IssueRow key={idx} issue={i} />)}
-            <DataTable headers={["Nombre", "Tipo", "Descripción"]}
-              rows={report.sections?.zones?.data?.map(z => [z.name, z.type, z.description])} />
-          </Section>
-
           <Section icon={Server} title="Interfaces" count={report.sections?.interfaces?.data?.length}>
-            <DataTable headers={["Nombre", "Tipo", "IP", "Máscara", "Zona", "Estado"]}
-              rows={report.sections?.interfaces?.data?.map(i => [i.name, i.type, i.ip_address, i.netmask, i.zone, i.status])} />
+            {report.sections?.interfaces?.data?.map((iface, idx) => (
+              <div key={idx} className="mb-4 border border-gray-100 rounded-lg overflow-hidden">
+                <div className="flex items-center gap-3 px-3 py-2 bg-gray-50 border-b">
+                  <span className="font-mono text-sm font-semibold text-gray-800">{iface.name}</span>
+                  {iface.hardware && iface.hardware !== iface.name && (
+                    <span className="text-xs text-gray-400">({iface.hardware})</span>
+                  )}
+                  {iface.zone && (
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-brand-50 text-brand-700 border border-brand-200">
+                      {iface.zone}{iface.zone_type ? ` · ${iface.zone_type}` : ""}
+                    </span>
+                  )}
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${iface.interface_status === "ON" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                    {iface.interface_status}
+                  </span>
+                  {iface.ip_address && (
+                    <span className="ml-auto font-mono text-xs text-gray-600">{iface.ip_address}/{iface.netmask}</span>
+                  )}
+                  <span className="text-xs text-gray-400 max-w-xs truncate">{iface.status}</span>
+                </div>
+                {/* VLANs */}
+                {iface.vlans?.length > 0 && (
+                  <div className="px-3 py-1.5 bg-blue-50 border-b">
+                    <span className="text-xs font-semibold text-blue-700 mr-2">VLANs:</span>
+                    {iface.vlans.map((v, vi) => (
+                      <span key={vi} className="inline-flex items-center gap-1 text-xs bg-white border border-blue-200 text-blue-800 rounded px-2 py-0.5 mr-1 font-mono">
+                        {v.name} <span className="text-blue-400">VLAN {v.vlan_id}</span>
+                        {v.zone && <span className="text-green-700">· {v.zone}</span>}
+                        {v.ip_address && <span className="text-gray-500">· {v.ip_address}</span>}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {/* Aliases */}
+                {iface.aliases?.length > 0 && (
+                  <div className="px-3 py-1.5 bg-amber-50">
+                    <span className="text-xs font-semibold text-amber-700 mr-2">Aliases:</span>
+                    {iface.aliases.map((a, ai) => (
+                      <span key={ai} className="inline-flex items-center gap-1 text-xs bg-white border border-amber-200 text-amber-800 rounded px-2 py-0.5 mr-1 font-mono">
+                        {a.name} · {a.ip_address}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </Section>
 
-          <Section icon={Shield} title="Políticas de Control Web" count={report.sections?.web_filter?.data?.length}>
-            <DataTable headers={["Nombre", "Descripción", "Acción por defecto"]}
-              rows={report.sections?.web_filter?.data?.map(p => [p.name, p.description, p.default_action])} />
+          <Section icon={Route} title="Rutas SD-WAN" count={report.sections?.sdwan_policy_routes?.data?.length}>
+            <DataTable headers={["Nombre", "Estado", "Gateway", "Backup GW", "Src Redes", "Dst Redes", "Servicios"]}
+              rows={report.sections?.sdwan_policy_routes?.data?.map(r => [r.name, r.status, r.gateway, r.backup_gateway, r.source_networks?.join(", "), r.destination_networks?.join(", "), r.services?.join(", ")])} />
           </Section>
 
-          <Section icon={Shield} title="Políticas de Control de Aplicaciones" count={report.sections?.app_filter?.data?.length}>
-            <DataTable headers={["Nombre", "Descripción"]}
-              rows={report.sections?.app_filter?.data?.map(p => [p.name, p.description])} />
+          <Section icon={Settings} title="Acceso al Dispositivo (ACLs Locales)" count={report.sections?.device_access?.data?.length}>
+            <DataTable headers={["Nombre regla", "Zona origen", "Hosts", "Servicios", "Acción"]}
+              rows={report.sections?.device_access?.data?.map(a => [a.rule_name, a.source_zone, a.hosts?.join(", "), a.services?.join(", "), a.action])} />
           </Section>
         </div>
       )}
