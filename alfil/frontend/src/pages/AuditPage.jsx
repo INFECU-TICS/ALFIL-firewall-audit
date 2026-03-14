@@ -11,6 +11,13 @@ import { SeverityBadge, ScoreRing } from "../components/IssuesBadge";
 import ConfirmModal from "../components/ConfirmModal";
 
 // ---------------------------------------------------------------------------
+// Helpers de fecha — backend guarda en UTC, mostrar en GMT-5 (Ecuador)
+const fmtDate = (iso) => {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("es-EC", { timeZone: "America/Guayaquil" });
+};
+
+// ---------------------------------------------------------------------------
 // Helpers de UI
 // ---------------------------------------------------------------------------
 function Section({ icon: Icon, title, count, children, defaultOpen = false }) {
@@ -244,7 +251,7 @@ export default function AuditPage() {
                     className={`border-b last:border-0 transition-colors ${selectedAuditId === a.id ? "bg-brand-50" : "hover:bg-gray-50"}`}>
                     <td className="px-3 py-2 text-gray-500 text-xs">{a.id}</td>
                     <td className="px-3 py-2 text-gray-700 whitespace-nowrap">
-                      {a.created_at ? new Date(a.created_at).toLocaleString() : "—"}
+                      {fmtDate(a.created_at)}
                     </td>
                     <td className="px-3 py-2"><StatusBadge status={a.status} /></td>
                     <td className="px-3 py-2 font-bold">
@@ -353,7 +360,7 @@ export default function AuditPage() {
               <div><span className="font-medium text-gray-800">Firmware:</span> {report.system?.firmware || "—"}</div>
               <div><span className="font-medium text-gray-800">Timezone:</span> {report.system?.timezone || "—"}</div>
             </div>
-            <p className="text-xs text-gray-400 mt-3">Auditoría: {new Date(report.generated_at).toLocaleString()}</p>
+            <p className="text-xs text-gray-400 mt-3">Auditoría: {fmtDate(report.generated_at)}</p>
           </div>
 
           {/* Hallazgos */}
