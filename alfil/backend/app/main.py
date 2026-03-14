@@ -1,3 +1,4 @@
+import urllib.request
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -42,6 +43,17 @@ def _mark_stale_audits():
             db.commit()
     finally:
         db.close()
+
+
+@app.get(settings.api_v1_prefix + "/utils/public-ip")
+def get_public_ip():
+    """Devuelve la IP pública del servidor (para mostrarla en el formulario de conexión)."""
+    try:
+        with urllib.request.urlopen("https://ipinfo.io/ip", timeout=5) as r:
+            ip = r.read().decode().strip()
+        return {"ip": ip}
+    except Exception:
+        return {"ip": None}
 
 
 @app.get("/health")

@@ -8,9 +8,9 @@ function PrereqBanner() {
   const [publicIp, setPublicIp] = useState(null);
 
   useEffect(() => {
-    fetch("https://ipinfo.io/json")
+    fetch("/api/v1/utils/public-ip")
       .then((r) => r.json())
-      .then((d) => setPublicIp(d.ip))
+      .then((d) => setPublicIp(d.ip ?? null))
       .catch(() => setPublicIp(null));
   }, []);
 
