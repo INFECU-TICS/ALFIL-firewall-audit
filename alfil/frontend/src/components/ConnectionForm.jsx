@@ -1,8 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../api";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Info } from "lucide-react";
 
 const DEFAULTS = { name: "", host: "", port: 4444, username: "", password: "", verify_ssl: false };
+
+function PrereqBanner() {
+  const [publicIp, setPublicIp] = useState(null);
+
+  useEffect(() => {
+    fetch("https://ipinfo.io/json")
+      .then((r) => r.json())
+      .then((d) => setPublicIp(d.ip))
+      .catch(() => setPublicIp(null));
+  }, []);
+
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900">
+      <div className="flex items-center gap-1.5 font-semibold mb-2">
+        <Info className="w-4 h-4 flex-shrink-0" />
+        Requisitos previos en el firewall Sophos
+      </div>
+      <ol className="list-decimal list-inside space-y-1.5 text-blue-800">
+        <li>Crear un usuario con perfil <span className="font-medium">Auditor</span> en el firewall.</li>
+        <li>
+          Autorizar la IP pública de este servidor en{" "}
+          <span className="font-medium">Sistema &rsaquo; Administración &rsaquo; Acceso API</span>:{" "}
+          {publicIp
+            ? <code className="bg-blue-100 px-1 rounded font-mono">{publicIp}</code>
+            : <span className="italic text-blue-500">obteniendo IP…</span>}
+        </li>
+        <li>Usar el botón <span className="font-medium">Probar conexión</span> antes de guardar.</li>
+      </ol>
+    </div>
+  );
+}
 
 export default function ConnectionForm({ initial = {}, onSave, onCancel }) {
   const [form, setForm] = useState({ ...DEFAULTS, ...initial });
@@ -51,6 +82,7 @@ export default function ConnectionForm({ initial = {}, onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {!initial.id && <PrereqBanner />}
       <div>
         <label className="label">Nombre / Empresa</label>
         <input className="input" value={form.name} onChange={set("name")} placeholder="Ej. Cliente ABC - FW Principal" required />
