@@ -108,3 +108,9 @@ docker compose up --build
 ### Postman Collection
 
 `sophosfirewall.postman_collection.json` — referencia de requests XML para la Sophos API. Útil para entender el formato de responses al agregar nuevos colectores.
+
+## Sophos Firewall v23 – REST API y servidor MCP
+
+Línea de trabajo nueva (challenge): `alfil-mcp/`, servidor MCP sobre la REST API v1 de SFOS v23 (`/api/firewall-config/v1`, Bearer token). Fase 1 solo lectura; fase 2 escritura con confirmación. Plan y decisiones en la sesión de planificación; no asumir rutas de endpoints, validarlas contra la spec OpenAPI del firewall v23 de pruebas.
+
+Links oficiales y notas verificadas: `docs/REFERENCES.md`.

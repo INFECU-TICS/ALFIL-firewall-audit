@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  backend:
+  abackend:
     build:
       context: ./alfil/backend
       dockerfile: Dockerfile
@@ -30,13 +30,13 @@ services:
       - "traefik.http.routers.alfil-backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.alfil-backend.loadbalancer.server.port=8000"
 
-  frontend:
+  afrontend:
     build:
       context: ./alfil/frontend
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      backend:
+      abackend:
         condition: service_healthy
     expose:
       - "80"
