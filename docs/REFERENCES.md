@@ -20,3 +20,53 @@ Fuentes oficiales para consultar información vigente. Verificar siempre contra 
 ## Pendiente de confirmar en el firewall de pruebas
 
 Puerto, content-type, paginación, formato de errores, rutas reales por recurso y comportamiento con certificado autofirmado.
+
+## Rutas verificadas en firewall v23 de pruebas (2026-10-30)
+
+Puerto **4444**, `Authorization: Bearer <key>`, TLS autofirmado, JSON. Prefijo `/api/firewall-config/v1`. Las rutas **no** siguen los slugs de la doc; se descubrieron por prueba (GET → 200).
+
+Listas: `{"items": [...], "pages": {"current": 1, "maxSize": 100, "size": 50}}`. Objetos con `id` (UUID), `name`, `createdAt`, `updatedAt`. Rutas inexistentes → 404 HTML (no JSON).
+
+| Recurso | Ruta |
+|---|---|
+| Reglas de firewall IPv4 / IPv6 | `/firewall/rules/ipv4`, `/firewall/rules/ipv6` |
+| Zonas | `/network/zones` |
+| Servicios / grupos de servicios | `/network/services`, `/network/service-groups` |
+| Hosts IPv4 / IPv6 / FQDN / MAC | `/network/addresses/ipv4`, `/ipv6`, `/fqdn`, `/mac` |
+| Grupos de hosts IPv4 | `/network/address-groups/ipv4` |
+| DNS | `/network/dns/settings` |
+| Gateways | `/routing/gateways/ipv4` |
+| Usuarios / grupos / en vivo | `/authentication/users`, `/user-groups`, `/live-users` |
+| Servidores de autenticación | `/authentication/servers` |
+| Sistema / portal / schedules / mensajes | `/administration/system-settings`, `/portal-settings`, `/schedules`, `/messages` |
+| API settings | `/administration/api-settings` |
+| Actualizaciones de seguridad | `/system/security-updates` |
+
+**Spec OpenAPI:** `alfil-mcp/spec/openapi.yaml` (OpenAPI 3.0.0, v1.0.0, ~9 MB), extraída oficialmente del firewall v23 activo (guía de API integrada; el equipo no la sirve por HTTP). Fuente de verdad para rutas. Inventario completo generado: [`API_V23_INVENTORY.md`](API_V23_INVENTORY.md) (390 paths, 708 operaciones: GET 266, POST 212, PATCH 137, DELETE 93; 134 tags). Regenerar: `python3 alfil-mcp/scripts/gen_inventory.py`.
+
+Rutas adicionales según la spec (aún sin probar en el equipo):
+
+| Recurso | Ruta |
+|---|---|
+| NAT IPv4 / IPv6 | `/nat/rules/ipv4`, `/nat/rules/ipv6` |
+| Interfaces | `/network/interfaces/network-interfaces` |
+| ACL servicios locales (device access) | `/acl-exception-rules/ipv4`, `/ipv6` |
+| Administradores | `/authentication/users/administrators` |
+| Perfiles de acceso admin | `/administration/access/profiles` |
+| Notificaciones | `/notification/notifications` |
+| IPsec | `/ipsec-vpn/site-to-site/connections/ipv4`, `/ipsec-vpn/profiles` |
+| Rutas estáticas | `/routing/static-unicast-routes/ipv4` |
+| Backup / hotfix | `/system/backup/settings`, `/system/hotfix/settings` |
+| Políticas web / apps / TLS | `/web/policies`, `/application/policies`, `/tls-inspection/decryption-profiles` |
+| Syslog | `/logging/log-destinations/syslog-servers` |
+
+No se encontró ruta de hora/NTP en la búsqueda parcial; revisar la spec por `time`/`ntp` antes de portar el check de NTP.
+
+## Hallazgos de la spec relevantes para el MCP
+
+- **POST no implica "crear".** 121 paths son solo-POST: acciones como `.../delete` (borrado masivo), `.../move` (reordenar reglas), `.../test-connection`, `fetch-groups`, `fetch-base-dn`, `oidc-discovery`, cambio de contraseña de admin. El guard de fase 1 debe bloquear **todo** verbo distinto de GET (incluidos los `test-connection`, que abren conexiones salientes desde el firewall).
+- **Errores:** JSON `{"error": "<codigo>", "message": "...", "code": "..."}` (ej. `badRequest`, `notAuthorized`) con 400/401/403/500. Un 404 de ruta inexistente devuelve HTML.
+- **Reglas:** discriminador `ruleType` (`firewall` | `waf`) en reglas IPv4/IPv6.
+- **Paginación:** `page`, `pageSize` (máx 100), `pageTotal`; el MCP debe paginar y limitar salida.
+- **Servidor por defecto en la spec:** `https://{firewallHost}/api/firewall-config/v1` con `<ip-del-firewall-lab>:4444` (el valor está embebido por el fabricante en el ejemplo; el puerto va dentro de `firewallHost`).
+- La spec trae ejemplos con credenciales ficticias (`securepassword`, `NewS3cur3P@ss!`); no son datos reales.
