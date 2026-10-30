@@ -113,4 +113,6 @@ docker compose up --build
 
 Línea de trabajo nueva (challenge): `alfil-mcp/`, servidor MCP sobre la REST API v1 de SFOS v23 (`/api/firewall-config/v1`, Bearer token). Fase 1 solo lectura; fase 2 escritura con confirmación. Plan y decisiones en la sesión de planificación; no asumir rutas de endpoints, validarlas contra la spec OpenAPI del firewall v23 de pruebas.
 
-Links oficiales y notas verificadas: `docs/REFERENCES.md`. Spec oficial extraída del firewall: `alfil-mcp/spec/openapi.yaml`; inventario de endpoints: `docs/API_V23_INVENTORY.md` (regenerar con `alfil-mcp/scripts/gen_inventory.py`). La API key de pruebas vive en `.env` (`API_KEY`, ignorado por git); firewall de pruebas en `<ip-del-firewall-lab>:4444`. Nunca imprimir ni commitear la key.
+**Estado y pendientes para retomar: `docs/ESTADO_Y_PENDIENTES.md`** (leer primero). Links oficiales y notas verificadas: `docs/REFERENCES.md`. Spec oficial extraída del firewall: `alfil-mcp/spec/openapi.yaml`; inventario de endpoints: `docs/API_V23_INVENTORY.md` (regenerar con `alfil-mcp/scripts/gen_inventory.py`). La API key de pruebas vive en `.env` (`API_KEY`, ignorado por git); firewall de pruebas en `<ip-del-firewall-lab>:4444`. Nunca imprimir ni commitear la key.
+
+Nota: la web ALFIL (API XML) funciona contra v23 pero el firewall de pruebas es lento; con los defaults actuales (timeout 10 s, 12 hilos) la auditoría falla casi por completo. Contraseña del admin de pruebas en la variable de entorno `FWPASS`. Detalle y plan en `docs/ESTADO_Y_PENDIENTES.md`.

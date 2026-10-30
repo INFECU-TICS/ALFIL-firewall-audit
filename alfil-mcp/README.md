@@ -2,7 +2,9 @@
 
 Servidor MCP **de solo lectura** para Sophos Firewall v23 sobre su REST API v1 (`/api/firewall-config/v1`). Parte de ALFIL (Automated Layered Firewall Inspection & Logic). Categorías del reto: Optimizer + Troubleshoot (fase 2: Automation con confirmación).
 
-> Estado: fase 1. Ninguna herramienta modifica el firewall; el cliente rechaza cualquier verbo distinto de GET antes de salir a la red y solo acepta las 266 rutas GET de la spec oficial (`spec/openapi.yaml`).
+> Estado: fase 1 (validada en vivo contra un firewall v23). Pendientes y roadmap: [`../docs/ESTADO_Y_PENDIENTES.md`](../docs/ESTADO_Y_PENDIENTES.md).
+>
+> Fase 1: Ninguna herramienta modifica el firewall; el cliente rechaza cualquier verbo distinto de GET antes de salir a la red y solo acepta las 266 rutas GET de la spec oficial (`spec/openapi.yaml`).
 
 ## Herramientas
 
@@ -63,3 +65,7 @@ Para probarlo sin cliente: `npx @modelcontextprotocol/inspector /ruta/alfil-mcp/
 - Spec oficial: `spec/openapi.yaml` (extraída del firewall v23). Inventario: `../docs/API_V23_INVENTORY.md`.
 - Regenerar catálogo de GET: `python scripts/gen_catalog.py`; inventario: `python scripts/gen_inventory.py`.
 - Es Early Access: si cambia la spec, regenerar ambos y correr los tests.
+
+## Validación en laboratorio
+
+`scripts/lab_validate.py` crea reglas `ALFIL-TEST-*` en un firewall **de pruebas**, ejecuta `audit_firewall` y las borra. Escribe en el equipo, por eso exige `ALFIL_LAB_WRITE=yes`. POST/DELETE tardan ~20 s cada uno.

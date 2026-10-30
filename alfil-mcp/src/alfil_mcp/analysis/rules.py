@@ -12,7 +12,10 @@ _PENALTY = {CRITICAL: 15, WARNING: 5, INFO: 1}  # misma fórmula que ALFIL: 100 
 
 
 def is_any(selector: Any) -> bool:
-    """`{"any": true}` => cualquiera. Un selector vacío también equivale a 'cualquiera'."""
+    """`{"any": true}` => cualquiera (verificado en v23 para zonas, redes y servicios).
+
+    Un selector sin elementos también se trata como 'cualquiera' (criterio defensivo, no verificado en vivo).
+    """
     if not isinstance(selector, dict):
         return selector is None
     if selector.get("any") is True:

@@ -70,3 +70,16 @@ No se encontró ruta de hora/NTP en la búsqueda parcial; revisar la spec por `t
 - **Paginación:** `page`, `pageSize` (máx 100), `pageTotal`; el MCP debe paginar y limitar salida.
 - **Servidor por defecto en la spec:** `https://{firewallHost}/api/firewall-config/v1` con `<ip-del-firewall-lab>:4444` (el valor está embebido por el fabricante en el ejemplo; el puerto va dentro de `firewallHost`).
 - La spec trae ejemplos con credenciales ficticias (`securepassword`, `NewS3cur3P@ss!`); no son datos reales.
+
+## Validación en vivo (2026-10-30, firewall v23 de laboratorio)
+
+- Se crearon 5 reglas `ALFIL-TEST-*` vía `POST /firewall/rules/ipv4` (201) y se borraron con `DELETE /firewall/rules/ipv4/{name}` (200). El firewall quedó con sus reglas originales.
+- `audit_firewall` detectó lo esperado: `RULE_ANY_ANY_ACCEPT`, `RULE_DUPLICATE` (con `duplicateOf`), `RULE_NO_LOGGING`, `RULE_DISABLED`. Score 79 = 100 − 4×5 − 1×1.
+- `servicesOrGroups` "cualquiera" se representa como `{"any": true}` (igual que zonas y redes).
+- Las referencias a objetos en reglas son `{"name": "..."}`; las reglas aceptan `position: "bottom"` al crear.
+- **Las escrituras son lentas:** POST y DELETE de reglas tardan ~20 s cada una. Un cliente de fase 2 necesita timeouts ≥ 120 s, y tras un timeout debe **consultar el estado antes de reintentar** (la regla puede haberse creado igualmente).
+
+## API XML legacy en v23 (2026-10-30)
+
+- Login y consultas funcionan (`APIVersion 2300.1`), endpoint `https://<fw>:4444/webconsole/APIController` (multipart `reqxml`).
+- En el laboratorio las consultas XML son lentas (`SystemStatus` 1.6 s, `IPHost` 2.4 s, `Zone` 22 s, `FirewallRule` 50 s). Con timeout 10 s y 12 hilos, 38 de 41 colectores de ALFIL fallan por timeout. Plan en `ESTADO_Y_PENDIENTES.md`.
