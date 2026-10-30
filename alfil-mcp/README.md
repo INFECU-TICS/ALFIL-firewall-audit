@@ -1,0 +1,65 @@
+# ALFIL-MCP
+
+Servidor MCP **de solo lectura** para Sophos Firewall v23 sobre su REST API v1 (`/api/firewall-config/v1`). Parte de ALFIL (Automated Layered Firewall Inspection & Logic). Categorías del reto: Optimizer + Troubleshoot (fase 2: Automation con confirmación).
+
+> Estado: fase 1. Ninguna herramienta modifica el firewall; el cliente rechaza cualquier verbo distinto de GET antes de salir a la red y solo acepta las 266 rutas GET de la spec oficial (`spec/openapi.yaml`).
+
+## Herramientas
+
+| Tool | Qué hace |
+|---|---|
+| `list_api_endpoints(search, limit)` | Busca entre los 266 endpoints GET de la API v23 |
+| `api_get(path, query)` | GET genérico sobre cualquiera de esas rutas (ej. `/network/zones`) |
+| `list_firewall_rules(only_enabled)` | Resumen de reglas IPv4 |
+| `get_firewall_rule(id_or_name)` | Detalle de una regla |
+| `audit_firewall()` | Hallazgos de reglas (Any→Any, sin log, duplicadas, deshabilitadas) y score 0–100 |
+
+Resource: `firewall://summary`. Próximo: hardening de admin (MFA, acceso WAN), objetos sin uso, `explain_rule_match`.
+
+## Instalación
+
+```bash
+cd alfil-mcp
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m pytest
+```
+
+## Configuración (variables de entorno)
+
+| Variable | Notas |
+|---|---|
+| `SFOS_HOST` | IP/hostname del firewall (requerida) |
+| `SFOS_PORT` | Default `4444` |
+| `SFOS_TOKEN` | API key (*Administration › API access*). También se acepta `API_KEY` |
+| `SFOS_VERIFY_SSL` | Default `true`; `false` para certificado autofirmado de laboratorio |
+| `SFOS_ENV_FILE` | Ruta opcional a un `.env` del que leer `SFOS_*`/`API_KEY` |
+
+El token nunca se imprime ni se registra. No lo commitees.
+
+## Conexión desde un cliente MCP
+
+Funciona con cualquier cliente MCP que soporte transporte **stdio**. Defina el servidor con esta configuración (el nombre del archivo y su ubicación dependen del cliente):
+
+```json
+{
+  "mcpServers": {
+    "alfil": {
+      "command": "/ruta/alfil-mcp/.venv/bin/python",
+      "args": ["-m", "alfil_mcp.server"],
+      "env": {
+        "SFOS_HOST": "<ip-del-firewall>",
+        "SFOS_VERIFY_SSL": "false",
+        "SFOS_ENV_FILE": "/ruta/al/.env"
+      }
+    }
+  }
+}
+```
+
+Para probarlo sin cliente: `npx @modelcontextprotocol/inspector /ruta/alfil-mcp/.venv/bin/python -m alfil_mcp.server`.
+
+## Mantenimiento
+
+- Spec oficial: `spec/openapi.yaml` (extraída del firewall v23). Inventario: `../docs/API_V23_INVENTORY.md`.
+- Regenerar catálogo de GET: `python scripts/gen_catalog.py`; inventario: `python scripts/gen_inventory.py`.
+- Es Early Access: si cambia la spec, regenerar ambos y correr los tests.
