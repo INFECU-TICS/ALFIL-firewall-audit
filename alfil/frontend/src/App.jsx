@@ -1,8 +1,9 @@
 import { Routes, Route, NavLink } from "react-router-dom";
-import { Shield, Server } from "lucide-react";
+import { Shield, Server, BookOpen } from "lucide-react";
 import ConnectionsPage from "./pages/ConnectionsPage";
 import AuditPage from "./pages/AuditPage";
 import FirewallQueryPage from "./pages/FirewallQueryPage";
+import DocsPage from "./pages/DocsPage";
 
 function NavItem({ to, children }) {
   return (
@@ -34,6 +35,9 @@ export default function App() {
             <NavItem to="/">
               <span className="flex items-center gap-1"><Server className="w-4 h-4" /> Conexiones</span>
             </NavItem>
+            <NavItem to="/docs">
+              <span className="flex items-center gap-1"><BookOpen className="w-4 h-4" /> Documentación</span>
+            </NavItem>
           </nav>
         </div>
       </header>
@@ -44,6 +48,7 @@ export default function App() {
           <Route path="/" element={<ConnectionsPage />} />
           <Route path="/audit/:id" element={<AuditPage />} />
           <Route path="/query/:id" element={<FirewallQueryPage />} />
+          <Route path="/docs" element={<DocsPage />} />
         </Routes>
       </main>
 

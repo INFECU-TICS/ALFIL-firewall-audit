@@ -120,3 +120,12 @@ def test_bloque_system_del_reporte_lee_hostname_y_zona_horaria_v23():
            "time_settings": {"data": {"TimeZone": "Europe/London"}}}
     rep = audit.generate_audit_report({"name": "x"}, raw)
     assert rep["system"]["hostname"] == "fw01" and rep["system"]["timezone"] == "Europe/London"
+
+
+def test_advierte_si_la_clave_de_cifrado_es_insegura(caplog):
+    import logging
+    from app import main
+    with caplog.at_level(logging.CRITICAL):
+        main.settings = main.settings.model_copy(update={"encryption_key": "your-encryption-key-here-change-in-production"})
+        main._warn_insecure_encryption_key()
+    assert any("ENCRYPTION_KEY" in r.message for r in caplog.records)

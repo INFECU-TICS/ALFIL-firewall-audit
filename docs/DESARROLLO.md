@@ -112,8 +112,29 @@ docker compose up --build
 
 ## Sophos Firewall v23 – REST API y servidor MCP
 
-Línea de trabajo nueva (challenge): `alfil-mcp/`, servidor MCP sobre la REST API v1 de SFOS v23 (`/api/firewall-config/v1`, Bearer token). Fase 1 solo lectura; fase 2 escritura con confirmación. Plan y decisiones en la sesión de planificación; no asumir rutas de endpoints, validarlas contra la spec OpenAPI del firewall v23 de pruebas.
+Línea de trabajo nueva (challenge): `alfil-mcp/`, servidor MCP sobre la REST API v1 de SFOS v23 (`/api/firewall-config/v1`, Bearer token). Fase 1 solo lectura; fase 2 escritura con confirmación. No asumir rutas de endpoints: validarlas contra la spec OpenAPI del firewall v23 de pruebas.
 
-**Estado y pendientes para retomar: `docs/ESTADO_Y_PENDIENTES.md`** (leer primero). Links oficiales y notas verificadas: `docs/REFERENCES.md`. Spec oficial extraída del firewall: `alfil-mcp/spec/openapi.yaml`; inventario de endpoints: `docs/API_V23_INVENTORY.md` (regenerar con `alfil-mcp/scripts/gen_inventory.py`). La API key de pruebas vive en `.env` (`API_KEY`, ignorado por git); firewall de pruebas en `<ip-del-firewall-lab>:4444`. Nunca imprimir ni commitear la key.
+**Estado y pendientes para retomar: `docs/ESTADO_Y_PENDIENTES.md`** (leer primero). Links oficiales y notas verificadas: `docs/REFERENCES.md`. Spec oficial extraída del firewall: `alfil-mcp/spec/openapi.yaml`; inventario de endpoints: `docs/API_V23_INVENTORY.md` (regenerar con `alfil-mcp/scripts/gen_inventory.py`). La API key de pruebas vive en `.env` (`API_KEY`, ignorado por git); el firewall de pruebas se indica con `SFOS_HOST` (puerto 4444). Nunca imprimir ni commitear la key.
 
 Nota: la web ALFIL (API XML) funciona contra v23 pero el firewall de pruebas es lento; con los defaults actuales (timeout 10 s, 12 hilos) la auditoría falla casi por completo. Contraseña del admin de pruebas en la variable de entorno `FWPASS`. Detalle y plan en `docs/ESTADO_Y_PENDIENTES.md`.
+
+## Documentación: mantenerla al día (obligatorio)
+
+Toda modificación funcional debe actualizar la documentación **en el mismo cambio**:
+
+| Archivo | Qué contiene | Actualizar cuando |
+|---|---|---|
+| `alfil/frontend/src/content/guia.md` | Guía de usuario (se muestra en la web, sección *Documentación*): funciones, conexión por tipo de API, MCP, límites y próximas implementaciones | Cambia una función, un modo de conexión, una detección o el alcance del MCP |
+| `docs/ESTADO_Y_PENDIENTES.md` | Estado, pendientes y decisiones | Se completa o se agrega trabajo |
+| `docs/REFERENCES.md` | Fuentes oficiales y hallazgos/rutas verificadas del firewall | Se verifica algo nuevo en un equipo |
+| `docs/API_V23_INVENTORY.md` | Inventario generado de la API | Cambia la spec (`alfil-mcp/scripts/gen_inventory.py`) |
+| `alfil-mcp/README.md` | Instalación y uso del MCP | Cambia el MCP |
+| `docs/DESARROLLO.md` | Esta guía de arquitectura | Cambia la arquitectura o los comandos |
+
+Actualice también la fecha de «Última actualización» de la guía de usuario.
+
+## Seguridad del repositorio
+
+- Nunca commitear claves, contraseñas, tokens, `.env`, bases de datos (`*.db`) ni respuestas reales de clientes (`.example_responses/`).
+- Las IPs, hostnames y usuarios de equipos reales no van en el código ni en la documentación: usar variables de entorno o marcadores (`<ip-del-firewall>`).
+- Los mensajes de commit describen el cambio; no incluyen credenciales ni datos de clientes.

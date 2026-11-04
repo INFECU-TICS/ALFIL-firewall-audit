@@ -1,3 +1,4 @@
+import logging
 import urllib.request
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,7 @@ Base.metadata.create_all(bind=engine)
 ensure_schema()
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.app_name,
@@ -29,6 +31,17 @@ app.add_middleware(
 
 app.include_router(connections.router, prefix=settings.api_v1_prefix)
 app.include_router(audit.router, prefix=settings.api_v1_prefix)
+
+
+@app.on_event("startup")
+def _warn_insecure_encryption_key():
+    """La clave por defecto es pública (está en el código): las credenciales guardadas serían descifrables."""
+    key = settings.encryption_key
+    if key.startswith("your-encryption-key") or len(key) < 32:
+        logger.critical(
+            "ENCRYPTION_KEY ausente, de ejemplo o demasiado corta: las credenciales guardadas NO están protegidas. "
+            "Defina una clave propia (python -c \"import secrets; print(secrets.token_hex(32))\") antes de guardar conexiones."
+        )
 
 
 @app.on_event("startup")
