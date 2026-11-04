@@ -1,0 +1,10 @@
+# Configuración de gitleaks: reglas por defecto + excepción para la spec OpenAPI del fabricante,
+# cuyos ejemplos de documentación (claves compartidas, JWT, PEM truncado) generan falsos positivos.
+title = "ALFIL"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ejemplos de la especificación oficial de Sophos"
+paths = ['''alfil-mcp/spec/openapi\.yaml''']
