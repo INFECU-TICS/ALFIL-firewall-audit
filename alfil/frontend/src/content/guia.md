@@ -1,6 +1,6 @@
 # Guía de uso de ALFIL
 
-> Última actualización: 2026-11-04. Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
+> Última actualización: 2026-11-05. Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
 
 ## 1. Qué es ALFIL
 
@@ -24,7 +24,7 @@ Ejecuta la recolección en segundo plano y genera un reporte con:
 - **Puntaje de salud** (0–100): `100 − 15 × críticos − 5 × advertencias − 1 × informativos`.
 - **Hallazgos** por severidad (crítico, advertencia, informativo), agrupados por sección.
 - **Tablas de datos**: administradores, acceso a dispositivo, reglas de firewall (con agrupación), reglas NAT, zonas, interfaces, hosts, servicios, etc.
-- **Historial** de auditorías por conexión.
+- **Historial** de auditorías por conexión, numeradas por conexión (#1, #2, #3…; el número no cambia si se borra una auditoría).
 - **Exportación** a Excel, PDF y ZIP (incluye los datos crudos).
 
 ### 2.3 Consultas directas («Obtener Info»)

@@ -14,6 +14,8 @@ class AuditReport(Base):
         nullable=False,
         index=True,
     )
+    # Número de auditoría dentro de su conexión (1, 2, 3…). `id` es global a todas las conexiones.
+    seq = Column(Integer, nullable=True)
     status = Column(String(20), default="running", nullable=False)  # running | completed | failed
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)

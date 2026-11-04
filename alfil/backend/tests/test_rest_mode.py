@@ -129,3 +129,21 @@ def test_advierte_si_la_clave_de_cifrado_es_insegura(caplog):
         main.settings = main.settings.model_copy(update={"encryption_key": "your-encryption-key-here-change-in-production"})
         main._warn_insecure_encryption_key()
     assert any("ENCRYPTION_KEY" in r.message for r in caplog.records)
+
+
+def test_numeracion_de_auditorias_es_por_conexion(tmp_path, monkeypatch):
+    """Antes el # mostraba el id global (1,2,3,6 en una conexión y 4,5 en otra); ahora 1..n por conexión."""
+    import app.database as db
+    eng = create_engine(f"sqlite:///{tmp_path}/old.db")
+    with eng.begin() as c:
+        c.execute(text("CREATE TABLE connections (id INTEGER PRIMARY KEY, name VARCHAR(100), host VARCHAR(255), port INTEGER, username VARCHAR(100), password_encrypted TEXT, verify_ssl BOOLEAN, is_active BOOLEAN)"))
+        c.execute(text("CREATE TABLE audit_reports (id INTEGER PRIMARY KEY, connection_id INTEGER, status VARCHAR(20))"))
+        for audit_id, conn_id in [(1, 1), (2, 1), (3, 1), (4, 2), (5, 2), (6, 1)]:
+            c.execute(text("INSERT INTO audit_reports (id, connection_id, status) VALUES (:i, :c, 'completed')"), {"i": audit_id, "c": conn_id})
+    monkeypatch.setattr(db, "engine", eng)
+    db.ensure_schema()
+    db.ensure_schema()  # idempotente
+    with eng.connect() as c:
+        rows = c.execute(text("SELECT connection_id, id, seq FROM audit_reports ORDER BY connection_id, id")).all()
+    assert [(cid, seq) for cid, _, seq in rows if cid == 1] == [(1, 1), (1, 2), (1, 3), (1, 4)]
+    assert [(cid, seq) for cid, _, seq in rows if cid == 2] == [(2, 1), (2, 2)]

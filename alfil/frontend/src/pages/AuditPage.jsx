@@ -249,7 +249,7 @@ export default function AuditPage() {
                 {audits.map((a) => (
                   <tr key={a.id}
                     className={`border-b last:border-0 transition-colors ${selectedAuditId === a.id ? "bg-brand-50" : "hover:bg-gray-50"}`}>
-                    <td className="px-3 py-2 text-gray-500 text-xs">{a.id}</td>
+                    <td className="px-3 py-2 text-gray-500 text-xs">{a.seq ?? a.id}</td>
                     <td className="px-3 py-2 text-gray-700 whitespace-nowrap">
                       {fmtDate(a.created_at)}
                     </td>

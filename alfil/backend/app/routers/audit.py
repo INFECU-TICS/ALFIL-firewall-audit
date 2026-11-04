@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
@@ -87,14 +88,15 @@ def start_audit(connection_id: int, background_tasks: BackgroundTasks, db: Sessi
     """Inicia una auditoría en segundo plano. Devuelve el audit_id inmediatamente."""
     _get_connection_or_404(connection_id, db)
 
-    audit = AuditReport(connection_id=connection_id, status="running")
+    last_seq = db.query(func.max(AuditReport.seq)).filter(AuditReport.connection_id == connection_id).scalar() or 0
+    audit = AuditReport(connection_id=connection_id, status="running", seq=last_seq + 1)
     db.add(audit)
     db.commit()
     db.refresh(audit)
 
     background_tasks.add_task(_run_audit_task, audit.id, connection_id)
 
-    return {"audit_id": audit.id, "status": "running",
+    return {"audit_id": audit.id, "seq": audit.seq, "status": "running",
             "created_at": audit.created_at.isoformat() if audit.created_at else None}
 
 
@@ -109,6 +111,7 @@ def list_audits(connection_id: int, db: Session = Depends(get_db)):
     return [
         {
             "id": a.id,
+            "seq": a.seq or a.id,
             "status": a.status,
             "created_at": a.created_at.isoformat() if a.created_at else None,
             "completed_at": a.completed_at.isoformat() if a.completed_at else None,

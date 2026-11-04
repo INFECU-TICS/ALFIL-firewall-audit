@@ -25,6 +25,13 @@ def ensure_schema() -> None:
     if "api_type" not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE connections ADD COLUMN api_type VARCHAR(10) NOT NULL DEFAULT 'xml'"))
+    if "audit_reports" in insp.get_table_names() and "seq" not in {c["name"] for c in insp.get_columns("audit_reports")}:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE audit_reports ADD COLUMN seq INTEGER"))
+            counters: dict = {}  # numeración por conexión, en orden de creación
+            for rid, cid in conn.execute(text("SELECT id, connection_id FROM audit_reports ORDER BY connection_id, id")).all():
+                counters[cid] = counters.get(cid, 0) + 1
+                conn.execute(text("UPDATE audit_reports SET seq = :s WHERE id = :i"), {"s": counters[cid], "i": rid})
 
 
 def get_db():
