@@ -16,6 +16,7 @@ class ConnectionConfigBase(BaseModel):
     api_type: Literal["xml", "rest"] = Field(default="xml", description="xml: usuario/contraseña; rest: API key (SFOS v23)")
     verify_ssl: bool = Field(default=True, description="Verify SSL certificate")
     is_active: bool = Field(default=True)
+    mcp_enabled: bool = Field(default=False, description="Disponible para el servidor MCP (solo conexiones REST)")
 
 
 class ConnectionConfigCreate(ConnectionConfigBase):
@@ -29,6 +30,8 @@ class ConnectionConfigCreate(ConnectionConfigBase):
             raise ValueError("username es obligatorio en modo xml")
         if self.api_type == "rest":
             self.username = REST_PLACEHOLDER_USER
+        if self.mcp_enabled and self.api_type != "rest":
+            raise ValueError("mcp_enabled solo está disponible para conexiones REST")
         return self
 
 
@@ -42,6 +45,7 @@ class ConnectionConfigUpdate(BaseModel):
     verify_ssl: Optional[bool] = None
     is_active: Optional[bool] = None
     api_type: Optional[Literal["xml", "rest"]] = None
+    mcp_enabled: Optional[bool] = None
 
 
 class ConnectionConfigResponse(ConnectionConfigBase):

@@ -1,6 +1,6 @@
 # Guía de uso de ALFIL
 
-> Última actualización: 2026-11-05 (topología de red). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
+> Última actualización: 2026-11-05 (conexiones y estado del MCP). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
 
 ## 1. Qué es ALFIL
 
@@ -17,6 +17,8 @@ El proyecto tiene dos componentes:
 
 ### 2.1 Conexiones
 Cada conexión guarda el firewall a auditar: nombre, host, puerto, tipo de API y credenciales (cifradas). Desde la página principal se puede **crear, editar, eliminar y probar** conexiones, y abrir la auditoría o las consultas de cada una.
+
+Las conexiones **REST** tienen además el interruptor **Disponible en MCP** (apagado por defecto), que permite a un asistente de IA leerlas a través del servidor MCP. Las conexiones XML no pueden habilitarse. En la parte superior de la página, el panel **Servidor MCP** muestra su estado (ver la sección 5.7).
 
 ### 2.2 Auditoría
 Ejecuta la recolección en segundo plano y genera un reporte con:
@@ -120,11 +122,31 @@ python3 -m venv .venv
 .venv/bin/python -m pytest
 ```
 
-### 5.3 Configuración (variables de entorno)
+### 5.3 Formas de acceder a un firewall
+El MCP puede trabajar de dos maneras (se pueden combinar):
+
+| Modo | Cómo se configura | Cuándo usarlo |
+|---|---|---|
+| **Conexiones de ALFIL** (recomendado) | `ALFIL_URL` + `ALFIL_MCP_TOKEN`; las conexiones se habilitan en el dashboard | Varios firewalls, credenciales centralizadas y estado visible en el dashboard |
+| **Directo** | `SFOS_HOST` + `SFOS_TOKEN` | Un solo firewall, sin ALFIL |
+
+En el modo ALFIL **el MCP nunca recibe la API key**: pide al backend de ALFIL que lea una ruta GET de la conexión elegida y el backend la ejecuta con la clave que custodia. Solo se aceptan las rutas GET de la especificación oficial.
+
+**Puesta en marcha en modo ALFIL**
+
+1. Cree una conexión de tipo **API REST v23** y actívele **Disponible en MCP** (en la tarjeta o al editarla).
+2. En el panel **Servidor MCP** del dashboard pulse **Generar token** y cópielo: solo se muestra una vez y en la base solo se guarda su hash. Generar otro invalida el anterior; **Revocar** lo anula.
+3. Configure el cliente MCP con `ALFIL_URL` (la dirección de ALFIL, alcanzable desde donde corre el MCP) y `ALFIL_MCP_TOKEN`. El panel muestra un JSON listo para copiar.
+4. En el asistente use `list_connections` para ver los firewalls disponibles y el parámetro `connection` para elegir uno. Si solo hay una conexión habilitada, se usa por defecto.
+
+### 5.4 Configuración (variables de entorno)
 
 | Variable | Descripción |
 |---|---|
-| `SFOS_HOST` | IP u hostname del firewall (obligatoria) |
+| `ALFIL_URL` | Dirección de ALFIL (por ejemplo `http://servidor:8081`) para usar sus conexiones |
+| `ALFIL_MCP_TOKEN` | Token generado en el dashboard de ALFIL |
+| `ALFIL_VERIFY_SSL` | `true` por defecto; `false` si ALFIL usa un certificado propio |
+| `SFOS_HOST` | IP u hostname del firewall (modo directo) |
 | `SFOS_PORT` | Puerto, por defecto `4444` |
 | `SFOS_TOKEN` | API key del firewall (también se acepta `API_KEY`) |
 | `SFOS_VERIFY_SSL` | `true` por defecto; `false` para certificados autofirmados de laboratorio |
@@ -132,7 +154,7 @@ python3 -m venv .venv
 
 La clave nunca se imprime ni se registra.
 
-### 5.4 Conexión desde un cliente MCP
+### 5.5 Conexión desde un cliente MCP
 Cualquier cliente MCP compatible con transporte **stdio** puede usarlo. La definición típica es:
 
 ```json
@@ -151,20 +173,37 @@ Cualquier cliente MCP compatible con transporte **stdio** puede usarlo. La defin
 }
 ```
 
-### 5.5 Herramientas disponibles
+### 5.6 Herramientas disponibles
 
 | Herramienta | Qué hace |
 |---|---|
+| `list_connections()` | Lista los firewalls disponibles (conexiones habilitadas en ALFIL y la directa) |
 | `list_api_endpoints(search, limit)` | Busca entre los 266 endpoints GET de la API v23 |
 | `api_get(path, query)` | Lectura genérica de cualquiera de esas rutas (p. ej. `/network/zones`) |
 | `list_firewall_rules(only_enabled)` | Resumen de las reglas IPv4 |
 | `get_firewall_rule(id_or_name)` | Detalle de una regla por nombre o UUID |
 | `audit_firewall()` | Auditoría de reglas (Any→Any, sin log, duplicadas, deshabilitadas) con puntaje |
 
-Recurso: `firewall://summary` (zonas y cantidad de reglas).
+Todas las herramientas que consultan un firewall aceptan el parámetro opcional `connection` (nombre o id de la conexión de ALFIL, o `directa`).
 
-### 5.6 Limitaciones del MCP
-- Solo firewalls con la **API REST de v23**.
+Recurso: `firewall://summary` (zonas y cantidad de reglas de la conexión por defecto).
+
+### 5.7 Estado del MCP en el dashboard
+Mientras el MCP está en ejecución envía un latido a ALFIL cada 30 segundos. El panel **Servidor MCP** muestra:
+
+| Estado | Significado |
+|---|---|
+| **En línea** | Hubo un latido en los últimos 90 segundos |
+| **Fuera de línea** | El MCP dejó de enviar latidos |
+| **Sin actividad** | Hay token, pero el MCP aún no se ha conectado |
+| **No configurado** | No hay token generado |
+
+Además indica la versión, el número de herramientas, el modo (solo lectura), las conexiones habilitadas y el prefijo del token. Como el MCP se ejecuta por stdio, normalmente lo lanza el cliente MCP: el estado es *en línea* solo mientras el cliente lo mantiene abierto.
+
+### 5.8 Limitaciones del MCP
+- Solo firewalls con la **API REST de v23**; las conexiones XML de ALFIL no se pueden usar desde el MCP.
+- En modo ALFIL, las consultas pasan por el backend de ALFIL (que debe estar accesible); en equipos lentos una consulta puede tardar decenas de segundos.
+- El estado en el dashboard depende de los latidos: si ALFIL no es alcanzable desde el MCP, aparecerá *fuera de línea* aunque el MCP funcione.
 - La auditoría del MCP cubre hoy las **reglas de firewall**; aún no incluye MFA de administradores, acceso de administración desde WAN, objetos sin uso ni diagnóstico de tráfico.
 - Las respuestas grandes se paginan (hasta 100 elementos por página).
 - La API es *Early Access*: las rutas pueden cambiar antes de la versión general.
@@ -199,6 +238,7 @@ Recurso: `firewall://summary` (zonas y cantidad de reglas).
 - Genere una `ENCRYPTION_KEY` propia y única por despliegue; no use valores de ejemplo.
 - Use cuentas de **solo lectura** (perfil Auditor) y autorice únicamente la IP del servidor de ALFIL.
 - No registre claves en repositorios, capturas ni tickets.
+- Trate el token del MCP como una credencial: permite leer (solo lectura) las conexiones habilitadas. Revóquelo si se expone y habilite en MCP solo las conexiones necesarias.
 - Los entregables a clientes deben ser **revisados por una persona** antes de enviarse. El puntaje y los hallazgos son una ayuda a la decisión, no un dictamen.
 
 ## 9. Mantenimiento de esta documentación

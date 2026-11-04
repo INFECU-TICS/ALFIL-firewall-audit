@@ -15,6 +15,9 @@ async function request(method, path, body) {
 export const api = {
   // Conexiones
   listConnections:     ()         => request("GET",    "/connections"),
+  mcpStatus:           ()         => request("GET",    "/mcp/status"),
+  mcpGenerateToken:    ()         => request("POST",   "/mcp/token"),
+  mcpRevokeToken:      ()         => request("DELETE", "/mcp/token"),
   getTopology:         (auditId)  => request("GET",    `/audit/reports/${auditId}/topology`),
   getConnection:       (id)       => request("GET",    `/connections/${id}`),
   createConnection:    (data)     => request("POST",   "/connections", data),

@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import guia from "../content/guia.md?raw";
@@ -64,6 +66,10 @@ const components = {
 
 export default function DocsPage() {
   const toc = buildToc(guia);
+  const { hash } = useLocation();
+  useEffect(() => {  // los enlaces internos (/docs#seccion) deben desplazar a la sección
+    if (hash) document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView();
+  }, [hash]);
   return (
     <div className="flex gap-8 items-start">
       <nav className="hidden lg:block w-64 flex-shrink-0 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto text-sm">

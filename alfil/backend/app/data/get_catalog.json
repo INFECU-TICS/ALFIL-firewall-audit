@@ -1,0 +1,2363 @@
+[
+ {
+  "path": "/acl-exception-rules/ipv4",
+  "operationId": "getAllAclExceptionRulesIpv4",
+  "tag": "Firewall local service ACL exception rules",
+  "summary": "Get all IPv4 rules",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/acl-exception-rules/ipv4/{idOrName}",
+  "operationId": "getAclExceptionRuleIpv4",
+  "tag": "Firewall local service ACL exception rules",
+  "summary": "Get an IPv4 rule",
+  "query": []
+ },
+ {
+  "path": "/acl-exception-rules/ipv6",
+  "operationId": "getAllAclExceptionRulesIpv6",
+  "tag": "Firewall local service ACL exception rules",
+  "summary": "Get all IPv6 rules",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/acl-exception-rules/ipv6/{idOrName}",
+  "operationId": "getAclExceptionRuleIpv6",
+  "tag": "Firewall local service ACL exception rules",
+  "summary": "Get an IPv6 rule",
+  "query": []
+ },
+ {
+  "path": "/active-threat-response/mdr-threat-feed/settings",
+  "operationId": "getMdrThreatFeed",
+  "tag": "Active threat response MDR",
+  "summary": "Retrieve mdr-threat",
+  "query": []
+ },
+ {
+  "path": "/active-threat-response/sophos-x-ops-threat-feed/settings",
+  "operationId": "getSophosXOpsThreatFeedSettings",
+  "tag": "Active threat response Sophos X-Ops",
+  "summary": "List Sophos X-Ops settings",
+  "query": []
+ },
+ {
+  "path": "/active-threat-response/thirdparty-threat-feeds",
+  "operationId": "getThreatFeed",
+  "tag": "Active threat response third party threat feeds",
+  "summary": "Get all threat feeds",
+  "query": []
+ },
+ {
+  "path": "/active-threat-response/thirdparty-threat-feeds/{idOrName}",
+  "operationId": "getThreatFeedByIdOrName",
+  "tag": "Active threat response third party threat feeds",
+  "summary": "Get a threat feed",
+  "query": []
+ },
+ {
+  "path": "/active-threat-response/threat-exclusions",
+  "operationId": "getThreatExclusions",
+  "tag": "Active threat response threat exclusions",
+  "summary": "List threat exclusions",
+  "query": []
+ },
+ {
+  "path": "/administration/access/permissions",
+  "operationId": "listAccessPermissions",
+  "tag": "Administration access profiles",
+  "summary": "Get all permissions",
+  "query": []
+ },
+ {
+  "path": "/administration/access/profiles",
+  "operationId": "listAccessProfiles",
+  "tag": "Administration access profiles",
+  "summary": "Get all access profiles",
+  "query": []
+ },
+ {
+  "path": "/administration/access/profiles/{idOrName}",
+  "operationId": "getAccessProfile",
+  "tag": "Administration access profiles",
+  "summary": "Get access profile",
+  "query": []
+ },
+ {
+  "path": "/administration/api-settings",
+  "operationId": "getAPIConfig",
+  "tag": "Administration API access settings",
+  "summary": "Get settings",
+  "query": []
+ },
+ {
+  "path": "/administration/messages",
+  "operationId": "getMessages",
+  "tag": "Administration messages",
+  "summary": "Get all messages",
+  "query": []
+ },
+ {
+  "path": "/administration/portal-settings",
+  "operationId": "getPortalSettings",
+  "tag": "Administration portal settings",
+  "summary": "Get portal settings",
+  "query": []
+ },
+ {
+  "path": "/administration/schedules",
+  "operationId": "listSchedules",
+  "tag": "Administration schedules",
+  "summary": "Get all schedules",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/administration/schedules/{idOrName}",
+  "operationId": "getSchedule",
+  "tag": "Administration schedules",
+  "summary": "Get a schedule",
+  "query": []
+ },
+ {
+  "path": "/administration/support-access",
+  "operationId": "getSupportAccessSetting",
+  "tag": "Support access",
+  "summary": "Get a support access",
+  "query": []
+ },
+ {
+  "path": "/administration/system-settings",
+  "operationId": "getSystemSettings",
+  "tag": "Administration system settings",
+  "summary": "Get system settings",
+  "query": []
+ },
+ {
+  "path": "/application/apps",
+  "operationId": "listApplications",
+  "tag": "Applications",
+  "summary": "List applications",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/application/apps/{name}",
+  "operationId": "getApplication",
+  "tag": "Applications",
+  "summary": "Get application",
+  "query": []
+ },
+ {
+  "path": "/application/attributes",
+  "operationId": "getApplicationAttributes",
+  "tag": "Application attributes",
+  "summary": "List app attributes",
+  "query": []
+ },
+ {
+  "path": "/application/attributes/{name}",
+  "operationId": "getApplicationAttribute",
+  "tag": "Application attributes",
+  "summary": "Get application attribute",
+  "query": []
+ },
+ {
+  "path": "/application/categories",
+  "operationId": "listAppFilterCategories",
+  "tag": "Application filter categories",
+  "summary": "List categories",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/application/categories/{name}",
+  "operationId": "getAppFilterCategory",
+  "tag": "Application filter categories",
+  "summary": "Get category",
+  "query": []
+ },
+ {
+  "path": "/application/objects",
+  "operationId": "listApplicationObjects",
+  "tag": "Application objects",
+  "summary": "List Application Objects",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/application/objects/{idOrName}",
+  "operationId": "getApplicationObject",
+  "tag": "Application objects",
+  "summary": "Get Application Object",
+  "query": []
+ },
+ {
+  "path": "/application/policies",
+  "operationId": "getAllApplicationFilterPolicies",
+  "tag": "Application filter policies",
+  "summary": "List app filter policies",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/application/policies/{idOrName}",
+  "operationId": "getApplicationFilterPolicy",
+  "tag": "Application filter policies",
+  "summary": "Get app filter policy",
+  "query": []
+ },
+ {
+  "path": "/authentication/captive-portal/appearance",
+  "operationId": "getCaptivePortalAppearance",
+  "tag": "Authentication captive portal appearance",
+  "summary": "Get portal appearance",
+  "query": []
+ },
+ {
+  "path": "/authentication/clients/global-settings",
+  "operationId": "getGlobalSettings",
+  "tag": "Authentication global user session settings",
+  "summary": "Get user session settings",
+  "query": []
+ },
+ {
+  "path": "/authentication/clients/transparent-auth-suite/collectors",
+  "operationId": "listStasCollectors",
+  "tag": "Authentication STAS collectors",
+  "summary": "List STAS collectors",
+  "query": []
+ },
+ {
+  "path": "/authentication/clients/transparent-auth-suite/collectors/{idOrName}",
+  "operationId": "getStasCollector",
+  "tag": "Authentication STAS collectors",
+  "summary": "Get STAS collector",
+  "query": []
+ },
+ {
+  "path": "/authentication/clients/transparent-auth-suite/settings",
+  "operationId": "getStasSettings",
+  "tag": "Authentication STAS settings",
+  "summary": "Get STAS settings",
+  "query": []
+ },
+ {
+  "path": "/authentication/clients/transparent-auth-suite/vpn-source-networks",
+  "operationId": "listStasVpnSourceNetworks",
+  "tag": "Authentication STAS VPN source networks",
+  "summary": "List STAS VPN source networks",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/authentication/clients/transparent-auth-suite/vpn-source-networks/{idOrName}",
+  "operationId": "getStasVpnSourceNetwork",
+  "tag": "Authentication STAS VPN source networks",
+  "summary": "Get STAS VPN source network",
+  "query": []
+ },
+ {
+  "path": "/authentication/guest-user-settings/sms-gateways",
+  "operationId": "getSmsGateways",
+  "tag": "Authentication SMS gateway settings",
+  "summary": "Get all SMS gateways",
+  "query": [
+   "nameContains",
+   "nameNotEquals"
+  ]
+ },
+ {
+  "path": "/authentication/guest-user-settings/sms-gateways/{idOrName}",
+  "operationId": "getSmsGateway",
+  "tag": "Authentication SMS gateway settings",
+  "summary": "Get an SMS gateway",
+  "query": []
+ },
+ {
+  "path": "/authentication/live-users",
+  "operationId": "getLiveUsers",
+  "tag": "Authentication live users",
+  "summary": "List live user sessions",
+  "query": []
+ },
+ {
+  "path": "/authentication/login/security-settings",
+  "operationId": "getLoginSecuritySettings",
+  "tag": "Authentication login security settings",
+  "summary": "Get login security settings",
+  "query": []
+ },
+ {
+  "path": "/authentication/multi-factor-authentication/totp-settings",
+  "operationId": "getOtpSettings",
+  "tag": "Authentication TOTP settings",
+  "summary": "Retrieve OTP settings",
+  "query": []
+ },
+ {
+  "path": "/authentication/multi-factor-authentication/totp-tokens",
+  "operationId": "listTotpTokens",
+  "tag": "Authentication TOTP tokens",
+  "summary": "List TOTP tokens",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/authentication/multi-factor-authentication/totp-tokens/hardware-tokens",
+  "operationId": "listHardwareTotpTokens",
+  "tag": "Authentication TOTP tokens",
+  "summary": "List hardware TOTP tokens",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/authentication/multi-factor-authentication/totp-tokens/hardware-tokens/{idOrName}",
+  "operationId": "getHardwareTotpToken",
+  "tag": "Authentication TOTP tokens",
+  "summary": "Get hardware TOTP token",
+  "query": []
+ },
+ {
+  "path": "/authentication/multi-factor-authentication/totp-tokens/software-tokens",
+  "operationId": "listSoftwareTotpTokens",
+  "tag": "Authentication TOTP tokens",
+  "summary": "List software TOTP tokens",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/authentication/password-complexity/administrative-users",
+  "operationId": "getAdminPasswordComplexitySettings",
+  "tag": "Authentication password complexity settings",
+  "summary": "Get admin settings",
+  "query": []
+ },
+ {
+  "path": "/authentication/password-complexity/network-users",
+  "operationId": "getNetworkUserPasswordComplexitySettings",
+  "tag": "Authentication password complexity settings",
+  "summary": "Get network settings",
+  "query": []
+ },
+ {
+  "path": "/authentication/policies/access-times",
+  "operationId": "getAccessTimeProfile",
+  "tag": "Authentication access time profiles",
+  "summary": "Get access time profiles",
+  "query": [
+   "nameContains",
+   "nameNotEquals"
+  ]
+ },
+ {
+  "path": "/authentication/policies/access-times/{idOrName}",
+  "operationId": "getAccessTimeProfileById",
+  "tag": "Authentication access time profiles",
+  "summary": "Get an access time profile",
+  "query": []
+ },
+ {
+  "path": "/authentication/policies/network-traffic-quotas",
+  "operationId": "getNetworkTrafficQuotas",
+  "tag": "Authentication network traffic quotas",
+  "summary": "Get all traffic quotas",
+  "query": [
+   "nameContains",
+   "nameNotEquals"
+  ]
+ },
+ {
+  "path": "/authentication/policies/network-traffic-quotas/{idOrName}",
+  "operationId": "getNetworkTrafficQuotaById",
+  "tag": "Authentication network traffic quotas",
+  "summary": "Get a traffic quota",
+  "query": []
+ },
+ {
+  "path": "/authentication/policies/surfing-quotas",
+  "operationId": "listSurfingQuotaPolicies",
+  "tag": "Authentication surfing quota policies",
+  "summary": "List quota policies",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/authentication/policies/surfing-quotas/{idOrName}",
+  "operationId": "getSurfingQuotaPolicy",
+  "tag": "Authentication surfing quota policies",
+  "summary": "Get quota policy",
+  "query": []
+ },
+ {
+  "path": "/authentication/server-priority-list/administrative-access",
+  "operationId": "getAdministratorAuthMethodSettings",
+  "tag": "Authentication servers priority list",
+  "summary": "Get admin settings",
+  "query": []
+ },
+ {
+  "path": "/authentication/server-priority-list/default",
+  "operationId": "getDefaultAuthMethodSettings",
+  "tag": "Authentication servers priority list",
+  "summary": "Get default settings",
+  "query": []
+ },
+ {
+  "path": "/authentication/server-priority-list/user-portal-access",
+  "operationId": "getUserPortalAuthMethodSettings",
+  "tag": "Authentication servers priority list",
+  "summary": "Get user portal settings",
+  "query": []
+ },
+ {
+  "path": "/authentication/server-priority-list/vpn-access",
+  "operationId": "getVpnAuthMethodSettings",
+  "tag": "Authentication servers priority list",
+  "summary": "Get VPN settings",
+  "query": []
+ },
+ {
+  "path": "/authentication/servers",
+  "operationId": "getAuthenticationServers",
+  "tag": "Authentication servers",
+  "summary": "Get Auth servers",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/authentication/servers/active-directory",
+  "operationId": "getActiveDirectorySettings",
+  "tag": "Authentication servers",
+  "summary": "Get AD servers",
+  "query": [
+   "nameContains",
+   "nameNotEquals"
+  ]
+ },
+ {
+  "path": "/authentication/servers/active-directory/{idOrName}",
+  "operationId": "getActiveDirectorySettingsByIdOrName",
+  "tag": "Authentication servers",
+  "summary": "Get an AD server",
+  "query": []
+ },
+ {
+  "path": "/authentication/servers/generic-idp-sso",
+  "operationId": "getGenericIdpSsoServers",
+  "tag": "Authentication servers",
+  "summary": "Get all IdP servers",
+  "query": [
+   "nameContains",
+   "nameNotEquals"
+  ]
+ },
+ {
+  "path": "/authentication/servers/generic-idp-sso/{idOrName}",
+  "operationId": "getGenericIdpSsoServerByIdOrName",
+  "tag": "Authentication servers",
+  "summary": "Get an IdP server",
+  "query": []
+ },
+ {
+  "path": "/authentication/servers/ldap",
+  "operationId": "getLDAPSettings",
+  "tag": "Authentication servers",
+  "summary": "Get all LDAP servers",
+  "query": [
+   "nameContains",
+   "nameNotEquals"
+  ]
+ },
+ {
+  "path": "/authentication/servers/ldap/{idOrName}",
+  "operationId": "getLDAPSettingsByIdOrName",
+  "tag": "Authentication servers",
+  "summary": "Get an LDAP server",
+  "query": []
+ },
+ {
+  "path": "/authentication/servers/radius",
+  "operationId": "getRadiusSettings",
+  "tag": "Authentication servers",
+  "summary": "Get all RADIUS servers",
+  "query": [
+   "nameContains",
+   "nameNotEquals"
+  ]
+ },
+ {
+  "path": "/authentication/servers/radius/{idOrName}",
+  "operationId": "getRadiusSettingsByIdOrName",
+  "tag": "Authentication servers",
+  "summary": "Get a RADIUS server",
+  "query": []
+ },
+ {
+  "path": "/authentication/servers/tacacs",
+  "operationId": "getTacacsSettings",
+  "tag": "Authentication servers",
+  "summary": "Get all TACACS+ servers",
+  "query": [
+   "nameContains",
+   "nameNotEquals"
+  ]
+ },
+ {
+  "path": "/authentication/servers/tacacs/{idOrName}",
+  "operationId": "getTacacsSettingsByIdOrName",
+  "tag": "Authentication servers",
+  "summary": "Get a TACACS+ server",
+  "query": []
+ },
+ {
+  "path": "/authentication/services/chromebook-sso",
+  "operationId": "getChromebookSsoSettings",
+  "tag": "Authentication chromebook SSO settings",
+  "summary": "Get Chromebook SSO settings",
+  "query": []
+ },
+ {
+  "path": "/authentication/services/radius-accounting-sso",
+  "operationId": "listRadiusAccountingClients",
+  "tag": "Authentication radius accounting SSO settings",
+  "summary": "List accounting clients",
+  "query": []
+ },
+ {
+  "path": "/authentication/services/radius-accounting-sso/{idOrName}",
+  "operationId": "getRadiusAccountingClient",
+  "tag": "Authentication radius accounting SSO settings",
+  "summary": "Get accounting client",
+  "query": []
+ },
+ {
+  "path": "/authentication/user-groups",
+  "operationId": "getUserGroups",
+  "tag": "Authentication user groups",
+  "summary": "List user groups",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/authentication/user-groups/{idOrName}",
+  "operationId": "getUserGroup",
+  "tag": "Authentication user groups",
+  "summary": "Get a user group",
+  "query": []
+ },
+ {
+  "path": "/authentication/users",
+  "operationId": "getUsers",
+  "tag": "Authentication users",
+  "summary": "List users",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/authentication/users/administrators",
+  "operationId": "getAdministrators",
+  "tag": "Authentication users",
+  "summary": "List administrators",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/authentication/users/administrators/{idOrName}",
+  "operationId": "getAdministrator",
+  "tag": "Authentication users",
+  "summary": "Get an administrator",
+  "query": []
+ },
+ {
+  "path": "/authentication/users/network-users",
+  "operationId": "getNetworkUsers",
+  "tag": "Authentication users",
+  "summary": "List network users",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/authentication/users/network-users/{idOrName}",
+  "operationId": "getNetworkUser",
+  "tag": "Authentication users",
+  "summary": "Get a network user",
+  "query": []
+ },
+ {
+  "path": "/authentication/web-settings",
+  "operationId": "getWebAuthenticationSettings",
+  "tag": "Authentication web authentication settings",
+  "summary": "Get web auth settings",
+  "query": []
+ },
+ {
+  "path": "/certificate/certificate-authorities",
+  "operationId": "listCertificateAuthorities",
+  "tag": "Certificate authorities",
+  "summary": "List CAs",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/certificate/certificate-authorities/built-in/default-ca",
+  "operationId": "getDefaultCa",
+  "tag": "Certificate default CA",
+  "summary": "Get a default CA",
+  "query": []
+ },
+ {
+  "path": "/certificate/certificate-authorities/{idOrName}",
+  "operationId": "getCertificateAuthority",
+  "tag": "Certificate authorities",
+  "summary": "Get certificate authority",
+  "query": []
+ },
+ {
+  "path": "/certificate/certificate-revocation-lists",
+  "operationId": "listCertificateRevocationLists",
+  "tag": "Certificate revocation lists",
+  "summary": "List CRLs",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/certificate/certificate-revocation-lists/{idOrName}",
+  "operationId": "getCertificateRevocationList",
+  "tag": "Certificate revocation lists",
+  "summary": "Get CRL",
+  "query": []
+ },
+ {
+  "path": "/certificate/certificates",
+  "operationId": "listCertificates",
+  "tag": "Certificates",
+  "summary": "List certificates",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/certificate/certificates/certificate-signing-requests",
+  "operationId": "listCertificateSigningRequests",
+  "tag": "Certificate signing requests",
+  "summary": "List CSRs",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/certificate/certificates/certificate-signing-requests/{idOrName}",
+  "operationId": "getCertificateSigningRequest",
+  "tag": "Certificate signing requests",
+  "summary": "Get CSR",
+  "query": []
+ },
+ {
+  "path": "/certificate/certificates/external",
+  "operationId": "listUploadedCertificates",
+  "tag": "Certificate uploaded certificates",
+  "summary": "List uploaded certs",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/certificate/certificates/external/{idOrName}",
+  "operationId": "getUploadedCertificate",
+  "tag": "Certificate uploaded certificates",
+  "summary": "Get uploaded cert",
+  "query": []
+ },
+ {
+  "path": "/certificate/certificates/internal",
+  "operationId": "listLocalSignedCertificates",
+  "tag": "Certificate locally signed certificates",
+  "summary": "List certificates",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/certificate/certificates/internal/{idOrName}",
+  "operationId": "getLocalSignedCertificate",
+  "tag": "Certificate locally signed certificates",
+  "summary": "Get certificate",
+  "query": []
+ },
+ {
+  "path": "/denial-of-service/attacks/summary",
+  "operationId": "getAttacks",
+  "tag": "DoS attacks",
+  "summary": "Get attacks data",
+  "query": []
+ },
+ {
+  "path": "/denial-of-service/attacks/{floodAttackType}",
+  "operationId": "getAttacksByFlood",
+  "tag": "DoS attacks",
+  "summary": "Get attacks by flood type",
+  "query": []
+ },
+ {
+  "path": "/denial-of-service/policies",
+  "operationId": "getAllPolicies",
+  "tag": "DoS policies",
+  "summary": "Returns all policies",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/denial-of-service/policies/{idOrName}",
+  "operationId": "getPolicyByIdOrName",
+  "tag": "DoS policies",
+  "summary": "Get dos policy",
+  "query": []
+ },
+ {
+  "path": "/denial-of-service/settings",
+  "operationId": "getDosSettings",
+  "tag": "DoS settings",
+  "summary": "Get DoS settings",
+  "query": []
+ },
+ {
+  "path": "/firewall-health-check/policies",
+  "operationId": "getHealthCheckPolicyList",
+  "tag": "Firewall health check",
+  "summary": "Policy list",
+  "query": []
+ },
+ {
+  "path": "/firewall-health-check/policies/summary",
+  "operationId": "getHealthCheckSummary",
+  "tag": "Firewall health check",
+  "summary": "Policies summary",
+  "query": []
+ },
+ {
+  "path": "/firewall/rules/ipv4",
+  "operationId": "getAllFirewallRulesIpv4",
+  "tag": "Firewall rules",
+  "summary": "Get all IPv4 rules",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/firewall/rules/ipv4/{idOrName}",
+  "operationId": "getFirewallRuleIpv4",
+  "tag": "Firewall rules",
+  "summary": "Get IPv4 rule",
+  "query": []
+ },
+ {
+  "path": "/firewall/rules/ipv6",
+  "operationId": "getAllFirewallRulesIpv6",
+  "tag": "Firewall rules",
+  "summary": "Get all IPv6 rules",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/firewall/rules/ipv6/{idOrName}",
+  "operationId": "getFirewallRuleIpv6",
+  "tag": "Firewall rules",
+  "summary": "Get IPv6 rule",
+  "query": []
+ },
+ {
+  "path": "/intrusion-prevention/custom-signatures",
+  "operationId": "getIpsCustomSignatures",
+  "tag": "IPS custom signatures",
+  "summary": "List IPS custom sigs",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/intrusion-prevention/custom-signatures/{idOrName}",
+  "operationId": "getIpsCustomSignature",
+  "tag": "IPS custom signatures",
+  "summary": "Get IPS custom sig",
+  "query": []
+ },
+ {
+  "path": "/intrusion-prevention/policies",
+  "operationId": "getIpsPolicies",
+  "tag": "IPS policies",
+  "summary": "Get all IPS policies",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/intrusion-prevention/policies/{idOrName}",
+  "operationId": "getIpsPolicy",
+  "tag": "IPS policies",
+  "summary": "Get an IPS policy",
+  "query": []
+ },
+ {
+  "path": "/intrusion-prevention/settings",
+  "operationId": "getIpsSettings",
+  "tag": "IPS settings",
+  "summary": "Get IPS settings",
+  "query": []
+ },
+ {
+  "path": "/intrusion-prevention/signature-attributes",
+  "operationId": "getIpsSignatureAttributes",
+  "tag": "IPS signature attributes",
+  "summary": "List IPS attributes",
+  "query": []
+ },
+ {
+  "path": "/intrusion-prevention/signature-attributes/{name}",
+  "operationId": "getIpsSignatureAttribute",
+  "tag": "IPS signature attributes",
+  "summary": "Get IPS attribute",
+  "query": []
+ },
+ {
+  "path": "/ipsec-vpn/profiles",
+  "operationId": "getProfiles",
+  "tag": "IPsec profiles",
+  "summary": "Get all IPsec profiles",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/ipsec-vpn/profiles/{idOrName}",
+  "operationId": "getProfile",
+  "tag": "IPsec profiles",
+  "summary": "Get IPsec profile",
+  "query": []
+ },
+ {
+  "path": "/ipsec-vpn/remote-access/settings",
+  "operationId": "getIpsecRemoteAccessVpnSettings",
+  "tag": "IPsec remote access VPN settings",
+  "summary": "Get remote access VPN",
+  "query": []
+ },
+ {
+  "path": "/ipsec-vpn/site-to-site/connections/ipv4",
+  "operationId": "listIpsecConnectionsIpv4",
+  "tag": "IPsec site-to-site connections",
+  "summary": "Get all IPv4 connections",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/ipsec-vpn/site-to-site/connections/policy-based/ipv4",
+  "operationId": "listIpsecPolicyBasedConnectionsIpv4",
+  "tag": "IPsec site-to-site connections",
+  "summary": "Get all IPv4 policy-based",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/ipsec-vpn/site-to-site/connections/policy-based/ipv4/{idOrName}",
+  "operationId": "getPolicyBasedIpsecConnectionIpv4",
+  "tag": "IPsec site-to-site connections",
+  "summary": "Get IPv4 policy-based",
+  "query": []
+ },
+ {
+  "path": "/ipsec-vpn/site-to-site/connections/route-based/ipv4",
+  "operationId": "listIpsecRouteBasedConnectionsIpv4",
+  "tag": "IPsec site-to-site connections",
+  "summary": "Get all IPv4 route-based",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/ipsec-vpn/site-to-site/connections/route-based/ipv4/{idOrName}",
+  "operationId": "getRouteBasedIpsecConnectionIpv4",
+  "tag": "IPsec site-to-site connections",
+  "summary": "Get IPv4 route-based",
+  "query": []
+ },
+ {
+  "path": "/ipsec-vpn/site-to-site/failover-groups",
+  "operationId": "getFailovergroups",
+  "tag": "IPsec failover groups",
+  "summary": "Get all failovergroups",
+  "query": [
+   "filter",
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal",
+   "sort"
+  ]
+ },
+ {
+  "path": "/ipsec-vpn/site-to-site/failover-groups/{idOrName}",
+  "operationId": "getFailovergroup",
+  "tag": "IPsec failover groups",
+  "summary": "Get IPsec failovergroup",
+  "query": []
+ },
+ {
+  "path": "/ipsec-vpn/site-to-site/live-connections/ipv4",
+  "operationId": "getIpsecSiteToSiteLiveConnectionsIpv4",
+  "tag": "IPsec site-to-site live connections",
+  "summary": "Get live connections",
+  "query": []
+ },
+ {
+  "path": "/logging/log-attributes/components",
+  "operationId": "getLogAttributeComponents",
+  "tag": "Log attributes",
+  "summary": "Get log components",
+  "query": []
+ },
+ {
+  "path": "/logging/log-attributes/types",
+  "operationId": "getLogAttributeTypes",
+  "tag": "Log attributes",
+  "summary": "Get log types",
+  "query": []
+ },
+ {
+  "path": "/logging/log-destinations/central-firewall-reporting",
+  "operationId": "getCentralFirewallReportingLogComponents",
+  "tag": "Log destinations",
+  "summary": "Get central CFR components",
+  "query": []
+ },
+ {
+  "path": "/logging/log-destinations/log-viewer",
+  "operationId": "getLogViewerLogComponents",
+  "tag": "Log destinations",
+  "summary": "Get log viewer components",
+  "query": []
+ },
+ {
+  "path": "/logging/log-destinations/syslog-servers",
+  "operationId": "getSyslogServers",
+  "tag": "Log destinations syslog servers",
+  "summary": "List syslog servers",
+  "query": []
+ },
+ {
+  "path": "/logging/log-destinations/syslog-servers/{idOrName}",
+  "operationId": "getSyslogServer",
+  "tag": "Log destinations syslog servers",
+  "summary": "Get a syslog server",
+  "query": []
+ },
+ {
+  "path": "/logging/log-destinations/syslog-servers/{idOrName}/logs",
+  "operationId": "getSyslogServerLogs",
+  "tag": "Log destinations syslog servers",
+  "summary": "Get syslog log components",
+  "query": []
+ },
+ {
+  "path": "/logging/log-settings",
+  "operationId": "getLogSettings",
+  "tag": "Log settings",
+  "summary": "Get log settings",
+  "query": []
+ },
+ {
+  "path": "/malware-protection/settings",
+  "operationId": "getMalwareProtectionSettings",
+  "tag": "Malware protection",
+  "summary": "Get malware settings",
+  "query": []
+ },
+ {
+  "path": "/monitoring/netflow/collectors",
+  "operationId": "getNetFlowCollectors",
+  "tag": "Monitoring NetFlow configuration",
+  "summary": "List NetFlow collectors",
+  "query": []
+ },
+ {
+  "path": "/monitoring/netflow/collectors/{idOrName}",
+  "operationId": "getNetFlowCollector",
+  "tag": "Monitoring NetFlow configuration",
+  "summary": "Get a NetFlow collector",
+  "query": []
+ },
+ {
+  "path": "/monitoring/snmp/agent-configuration",
+  "operationId": "getSnmpAgentConfiguration",
+  "tag": "Monitoring SNMP agent configuration",
+  "summary": "Get agent conf",
+  "query": []
+ },
+ {
+  "path": "/monitoring/snmp/communities",
+  "operationId": "getSnmpCommunities",
+  "tag": "Monitoring SNMP communities",
+  "summary": "Returns SNMP communities",
+  "query": []
+ },
+ {
+  "path": "/monitoring/snmp/communities/{idOrName}",
+  "operationId": "getSnmpCommunity",
+  "tag": "Monitoring SNMP communities",
+  "summary": "Returns SNMP community",
+  "query": []
+ },
+ {
+  "path": "/monitoring/snmp/users",
+  "operationId": "getSnmpUsers",
+  "tag": "Monitoring SNMP users",
+  "summary": "Returns SNMP users",
+  "query": []
+ },
+ {
+  "path": "/monitoring/snmp/users/{idOrName}",
+  "operationId": "getSnmpUser",
+  "tag": "Monitoring SNMP users",
+  "summary": "Returns SNMP user",
+  "query": []
+ },
+ {
+  "path": "/nat/rules/ipv4",
+  "operationId": "getAllNatRulesIpv4",
+  "tag": "Firewall NAT rules",
+  "summary": "Get all IPv4 rules",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/nat/rules/ipv4/{idOrName}",
+  "operationId": "getNatRuleIpv4ByIdOrName",
+  "tag": "Firewall NAT rules",
+  "summary": "Get an IPv4 rule",
+  "query": []
+ },
+ {
+  "path": "/nat/rules/ipv6",
+  "operationId": "getAllNatRulesIpv6",
+  "tag": "Firewall NAT rules",
+  "summary": "Get all IPv6 rules",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/nat/rules/ipv6/{idOrName}",
+  "operationId": "getNatRuleIpv6ByIdOrName",
+  "tag": "Firewall NAT rules",
+  "summary": "Get an IPv6 rule",
+  "query": []
+ },
+ {
+  "path": "/network/address-groups/country",
+  "operationId": "getAllCountryGroups",
+  "tag": "Network address groups country",
+  "summary": "Get all country groups",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/address-groups/country/{idOrName}",
+  "operationId": "getCountryGroupByIdOrName",
+  "tag": "Network address groups country",
+  "summary": "Get country group",
+  "query": []
+ },
+ {
+  "path": "/network/address-groups/fqdn",
+  "operationId": "getAllFqdnGroups",
+  "tag": "Network address groups FQDN",
+  "summary": "Get all FQDN groups",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/address-groups/fqdn/{idOrName}",
+  "operationId": "getFqdnGroupByIdOrName",
+  "tag": "Network address groups FQDN",
+  "summary": "Get FQDN group",
+  "query": []
+ },
+ {
+  "path": "/network/address-groups/ipv4",
+  "operationId": "getAllIpv4AddressGroups",
+  "tag": "Network address groups IPv4",
+  "summary": "Get IPv4 address groups",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/address-groups/ipv4/{idOrName}",
+  "operationId": "getIpv4AddressGroupByIdOrName",
+  "tag": "Network address groups IPv4",
+  "summary": "Get an IPv4 group",
+  "query": []
+ },
+ {
+  "path": "/network/address-groups/ipv6",
+  "operationId": "getAllIpv6AddressGroups",
+  "tag": "Network address groups IPv6",
+  "summary": "Get all IPv6 groups",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/address-groups/ipv6/{idOrName}",
+  "operationId": "getIpv6AddressGroupByIdOrName",
+  "tag": "Network address groups IPv6",
+  "summary": "Get an IPv6 address group",
+  "query": []
+ },
+ {
+  "path": "/network/addresses/fqdn",
+  "operationId": "getAllFqdns",
+  "tag": "Network addresses FQDN",
+  "summary": "Get all FQDNs",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/addresses/fqdn/{idOrName}",
+  "operationId": "getFqdnByIdOrName",
+  "tag": "Network addresses FQDN",
+  "summary": "Get a FQDN",
+  "query": []
+ },
+ {
+  "path": "/network/addresses/ipv4",
+  "operationId": "getAllIpAddresses",
+  "tag": "Network addresses IPv4",
+  "summary": "Get all IPv4 addresses",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal",
+   "type"
+  ]
+ },
+ {
+  "path": "/network/addresses/ipv4/{idOrName}",
+  "operationId": "getIpAddressByIdOrName",
+  "tag": "Network addresses IPv4",
+  "summary": "Get an IPv4 address",
+  "query": []
+ },
+ {
+  "path": "/network/addresses/ipv6",
+  "operationId": "getAllIpv6Addresses",
+  "tag": "Network addresses IPv6",
+  "summary": "Get all IPv6 addresses",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal",
+   "type"
+  ]
+ },
+ {
+  "path": "/network/addresses/ipv6/{idOrName}",
+  "operationId": "getIpv6AddressByIdOrName",
+  "tag": "Network addresses IPv6",
+  "summary": "Get an IPv6 address",
+  "query": []
+ },
+ {
+  "path": "/network/addresses/mac",
+  "operationId": "getAllMacAddresses",
+  "tag": "Network addresses MAC",
+  "summary": "Get all MAC addresses",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal",
+   "type"
+  ]
+ },
+ {
+  "path": "/network/addresses/mac/{idOrName}",
+  "operationId": "getMacAddressByIdOrName",
+  "tag": "Network addresses MAC",
+  "summary": "Get a MAC address",
+  "query": []
+ },
+ {
+  "path": "/network/cellular-wan/modem-settings",
+  "operationId": "getCellularWanModemSettings",
+  "tag": "Network cellular WAN",
+  "summary": "Get cellular modem settings",
+  "query": []
+ },
+ {
+  "path": "/network/cellular-wan/modem-status",
+  "operationId": "getCellularWanStatus",
+  "tag": "Network cellular WAN",
+  "summary": "Get cellular modem status",
+  "query": []
+ },
+ {
+  "path": "/network/cellular-wan/settings",
+  "operationId": "getCellularWanSettings",
+  "tag": "Network cellular WAN",
+  "summary": "Get cellular WAN settings",
+  "query": []
+ },
+ {
+  "path": "/network/dhcp/relays/ipv4",
+  "operationId": "getAllDhcpRelayIpv4",
+  "tag": "Network DHCP relays",
+  "summary": "Get IPv4 DHCP relays",
+  "query": [
+   "nameContains",
+   "nameNotEquals"
+  ]
+ },
+ {
+  "path": "/network/dhcp/relays/ipv4/{idOrName}",
+  "operationId": "getDhcpRelayByIdIpv4",
+  "tag": "Network DHCP relays",
+  "summary": "Get IPv4 DHCP relay",
+  "query": []
+ },
+ {
+  "path": "/network/dhcp/relays/ipv6",
+  "operationId": "getAllDhcpRelayIpv6",
+  "tag": "Network DHCP relays",
+  "summary": "Get IPv6 DHCP relays",
+  "query": [
+   "nameContains",
+   "nameNotEquals"
+  ]
+ },
+ {
+  "path": "/network/dhcp/relays/ipv6/{idOrName}",
+  "operationId": "getDhcpRelayByIdIpv6",
+  "tag": "Network DHCP relays",
+  "summary": "Get IPv6 DHCP relay",
+  "query": []
+ },
+ {
+  "path": "/network/dhcp/server/servers/ipv4",
+  "operationId": "listDhcpServersIpv4",
+  "tag": "Network DHCPv4 servers",
+  "summary": "List DHCPv4 servers",
+  "query": [
+   "nameContains",
+   "nameNotEquals"
+  ]
+ },
+ {
+  "path": "/network/dhcp/server/servers/ipv4/{idOrName}",
+  "operationId": "getDhcpServerIpv4",
+  "tag": "Network DHCPv4 servers",
+  "summary": "Get DHCPv4 server",
+  "query": []
+ },
+ {
+  "path": "/network/dhcp/server/servers/ipv6",
+  "operationId": "listDhcpServersIpv6",
+  "tag": "Network DHCPv6 servers",
+  "summary": "List DHCPv6 servers",
+  "query": [
+   "nameContains",
+   "nameNotEquals"
+  ]
+ },
+ {
+  "path": "/network/dhcp/server/servers/ipv6/{idOrName}",
+  "operationId": "getDhcpServerIpv6",
+  "tag": "Network DHCPv6 servers",
+  "summary": "Get DHCPv6 server",
+  "query": []
+ },
+ {
+  "path": "/network/dhcp/server/settings/ipv4",
+  "operationId": "getDhcpSettings",
+  "tag": "Network DHCP server settings",
+  "summary": "Get DHCP settings",
+  "query": []
+ },
+ {
+  "path": "/network/dns/host-entries",
+  "operationId": "getAllDnsHostEntries",
+  "tag": "Network DNS host entries",
+  "summary": "Get DNS host entries",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/dns/host-entries/{idOrName}",
+  "operationId": "getDnsHostEntryById",
+  "tag": "Network DNS host entries",
+  "summary": "Get DNS host entry",
+  "query": []
+ },
+ {
+  "path": "/network/dns/protection/status",
+  "operationId": "getDnsProtectionStatus",
+  "tag": "Network DNS settings",
+  "summary": "DNS protection status",
+  "query": []
+ },
+ {
+  "path": "/network/dns/request-routes",
+  "operationId": "getAllDnsRequestRoutes",
+  "tag": "Network DNS request routes",
+  "summary": "Get DNS request routes",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/dns/request-routes/{idOrName}",
+  "operationId": "getDnsRequestRouteById",
+  "tag": "Network DNS request routes",
+  "summary": "Get DNS request route",
+  "query": []
+ },
+ {
+  "path": "/network/dns/settings",
+  "operationId": "getDnsSettings",
+  "tag": "Network DNS settings",
+  "summary": "Get DNS settings",
+  "query": []
+ },
+ {
+  "path": "/network/interfaces/network-interfaces",
+  "operationId": "listNetworkInterfaces",
+  "tag": "Network interfaces",
+  "summary": "Get all interfaces",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/interfaces/network-interfaces/{idOrName}",
+  "operationId": "getNetworkInterface",
+  "tag": "Network interfaces",
+  "summary": "Get an interface",
+  "query": []
+ },
+ {
+  "path": "/network/mdns-reflector",
+  "operationId": "getMdnsConfiguration",
+  "tag": "Network mDNS configuration",
+  "summary": "Get mDNS configuration",
+  "query": []
+ },
+ {
+  "path": "/network/neighbors/settings",
+  "operationId": "getNeighborConfiguration",
+  "tag": "Network neighbor configuration",
+  "summary": "Get neighbor settings",
+  "query": []
+ },
+ {
+  "path": "/network/neighbors/static/ipv4",
+  "operationId": "getAllStaticNeighborIpv4s",
+  "tag": "Network neighbors",
+  "summary": "Get all neighbors",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/neighbors/static/ipv4/{idOrName}",
+  "operationId": "getStaticNeighborIpv4",
+  "tag": "Network neighbors",
+  "summary": "Get a static neighbor",
+  "query": []
+ },
+ {
+  "path": "/network/neighbors/static/ipv6",
+  "operationId": "getAllStaticNeighborIpv6s",
+  "tag": "Network neighbors",
+  "summary": "Get all neighbors",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/neighbors/static/ipv6/{idOrName}",
+  "operationId": "getStaticNeighborIpv6",
+  "tag": "Network neighbors",
+  "summary": "Get a static neighbor",
+  "query": []
+ },
+ {
+  "path": "/network/router-advertisements",
+  "operationId": "getRouterAdvertisements",
+  "tag": "Network router advertisements",
+  "summary": "Get all router ads",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/router-advertisements/{idOrName}",
+  "operationId": "getRouterAdvertisement",
+  "tag": "Network router advertisements",
+  "summary": "Get a router ad",
+  "query": []
+ },
+ {
+  "path": "/network/service-groups",
+  "operationId": "getAllServiceGroups",
+  "tag": "Network service groups",
+  "summary": "Get all service groups",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/service-groups/{idOrName}",
+  "operationId": "getServiceGroupByIdOrName",
+  "tag": "Network service groups",
+  "summary": "Get a service group",
+  "query": []
+ },
+ {
+  "path": "/network/services",
+  "operationId": "getAllServices",
+  "tag": "Network services",
+  "summary": "Get all Services",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal",
+   "type"
+  ]
+ },
+ {
+  "path": "/network/services/{idOrName}",
+  "operationId": "getServiceByIdOrName",
+  "tag": "Network services",
+  "summary": "Get a Service",
+  "query": []
+ },
+ {
+  "path": "/network/zones",
+  "operationId": "getAllZones",
+  "tag": "Network zones",
+  "summary": "Get all zones",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/network/zones/{idOrName}",
+  "operationId": "getZone",
+  "tag": "Network zones",
+  "summary": "Get a zone",
+  "query": []
+ },
+ {
+  "path": "/notification/notifications",
+  "operationId": "getAlertNotificationSettings",
+  "tag": "Notification list",
+  "summary": "Get notification prefs",
+  "query": []
+ },
+ {
+  "path": "/routing/gateways/custom/ipv4",
+  "operationId": "getCustomGatewaysIpv4",
+  "tag": "Routing gateways",
+  "summary": "Get all IPv4 gateways",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/routing/gateways/custom/ipv4/{idOrName}",
+  "operationId": "getCustomGatewayIpv4ByIdOrName",
+  "tag": "Routing gateways",
+  "summary": "Get an IPv4 gateway",
+  "query": []
+ },
+ {
+  "path": "/routing/gateways/custom/ipv6",
+  "operationId": "getCustomGatewaysIpv6",
+  "tag": "Routing gateways",
+  "summary": "Get all IPv6 gateways",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/routing/gateways/custom/ipv6/{idOrName}",
+  "operationId": "getCustomGatewayIpv6ByIdOrName",
+  "tag": "Routing gateways",
+  "summary": "Get an IPv6 gateway",
+  "query": []
+ },
+ {
+  "path": "/routing/gateways/ipv4",
+  "operationId": "getGatewaysIpv4",
+  "tag": "Routing gateways",
+  "summary": "Get all IPv4 gateways",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/routing/gateways/ipv6",
+  "operationId": "getGatewaysIpv6",
+  "tag": "Routing gateways",
+  "summary": "Get all IPv6 gateways",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/routing/gateways/wan/ipv4",
+  "operationId": "getWanGatewaysIpv4",
+  "tag": "Routing gateways",
+  "summary": "Get all IPv4 gateways",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/routing/gateways/wan/ipv4/{idOrName}",
+  "operationId": "getWanGatewayIpv4ByIdOrName",
+  "tag": "Routing gateways",
+  "summary": "Get an IPv4 gateway",
+  "query": []
+ },
+ {
+  "path": "/routing/gateways/wan/ipv6",
+  "operationId": "getWanGatewaysIpv6",
+  "tag": "Routing gateways",
+  "summary": "Get all IPv6 gateways",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/routing/gateways/wan/ipv6/{idOrName}",
+  "operationId": "getWanGatewayIpv6ByIdOrName",
+  "tag": "Routing gateways",
+  "summary": "Get an IPv6 gateway",
+  "query": []
+ },
+ {
+  "path": "/routing/static-multicast-routes/ipv4",
+  "operationId": "getMulticastRoutesIPv4",
+  "tag": "Routing multicast routes",
+  "summary": "Retrieve Multicast Routes",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/routing/static-multicast-routes/ipv4/{idOrName}",
+  "operationId": "getMulticastRouteIPv4",
+  "tag": "Routing multicast routes",
+  "summary": "Retrieve Multicast Route",
+  "query": []
+ },
+ {
+  "path": "/routing/static-multicast-settings",
+  "operationId": "getMulticastForwardingSettings",
+  "tag": "Routing multicast settings",
+  "summary": "Get multicast settings",
+  "query": []
+ },
+ {
+  "path": "/routing/static-unicast-routes/ipv4",
+  "operationId": "getUnicastRoutesIPv4",
+  "tag": "Routing unicast routes",
+  "summary": "List IPv4 unicast routes",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/routing/static-unicast-routes/ipv4/{idOrName}",
+  "operationId": "getUnicastRouteIPv4",
+  "tag": "Routing unicast routes",
+  "summary": "Get IPv4 unicast route",
+  "query": []
+ },
+ {
+  "path": "/routing/static-unicast-routes/ipv6",
+  "operationId": "getUnicastRoutesIPv6",
+  "tag": "Routing unicast routes",
+  "summary": "List IPv6 unicast routes",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/routing/static-unicast-routes/ipv6/{idOrName}",
+  "operationId": "getUnicastRouteIPv6",
+  "tag": "Routing unicast routes",
+  "summary": "Get IPv6 unicast route",
+  "query": []
+ },
+ {
+  "path": "/sd-wan/routes/ipv4",
+  "operationId": "listSdwanRoutesIpv4",
+  "tag": "SD-WAN routes",
+  "summary": "List IPv4 SD-WAN routes",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/sd-wan/routes/ipv4/{idOrName}",
+  "operationId": "getSdwanRouteIpv4",
+  "tag": "SD-WAN routes",
+  "summary": "Get IPv4 SD-WAN Route",
+  "query": []
+ },
+ {
+  "path": "/sd-wan/routes/ipv6",
+  "operationId": "listSdwanRoutesIpv6",
+  "tag": "SD-WAN routes",
+  "summary": "List IPv6 SD-WAN routes",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/sd-wan/routes/ipv6/{idOrName}",
+  "operationId": "getSdwanRouteIpv6",
+  "tag": "SD-WAN routes",
+  "summary": "Get IPv6 SD-WAN route",
+  "query": []
+ },
+ {
+  "path": "/sophos-central/settings",
+  "operationId": "getSophosCentralSettings",
+  "tag": "Sophos Central",
+  "summary": "Get settings",
+  "query": []
+ },
+ {
+  "path": "/sophos-central/status",
+  "operationId": "getRegistrationStatus",
+  "tag": "Sophos Central",
+  "summary": "Get registration status",
+  "query": []
+ },
+ {
+  "path": "/spoof-protection/settings",
+  "operationId": "getSpoofSettings",
+  "tag": "Spoof protection general settings",
+  "summary": "Returns general settings",
+  "query": []
+ },
+ {
+  "path": "/spoof-protection/trusted-macs",
+  "operationId": "getAllTrustedMacs",
+  "tag": "Spoof protection trusted MACs",
+  "summary": "Returns trusted macs",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/spoof-protection/trusted-macs/{idOrName}",
+  "operationId": "getTrustedMacByIdOrName",
+  "tag": "Spoof protection trusted MACs",
+  "summary": "Retrieve trusted mac",
+  "query": []
+ },
+ {
+  "path": "/ssl-vpn/clientless/bookmark-groups",
+  "operationId": "listBookmarkGroups",
+  "tag": "SSL VPN bookmark groups",
+  "summary": "List bookmark groups",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/ssl-vpn/clientless/bookmark-groups/{idOrName}",
+  "operationId": "getBookmarkGroup",
+  "tag": "SSL VPN bookmark groups",
+  "summary": "Retrieve a bookmark group",
+  "query": []
+ },
+ {
+  "path": "/ssl-vpn/clientless/bookmarks",
+  "operationId": "getBookmarks",
+  "tag": "SSL VPN bookmarks",
+  "summary": "Get all bookmarks",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/ssl-vpn/clientless/bookmarks/{idOrName}",
+  "operationId": "getBookmark",
+  "tag": "SSL VPN bookmarks",
+  "summary": "Get a bookmark",
+  "query": []
+ },
+ {
+  "path": "/ssl-vpn/clientless/policies",
+  "operationId": "listClientlessPolicies",
+  "tag": "SSL VPN clientless policies",
+  "summary": "List clientless policies",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/ssl-vpn/clientless/policies/{idOrName}",
+  "operationId": "getClientlessPolicy",
+  "tag": "SSL VPN clientless policies",
+  "summary": "Get clientless policy",
+  "query": []
+ },
+ {
+  "path": "/ssl-vpn/global-settings",
+  "operationId": "getSslvpnGlobalSettings",
+  "tag": "SSL VPN global settings",
+  "summary": "Get SSL VPN settings",
+  "query": []
+ },
+ {
+  "path": "/ssl-vpn/remote-access/policies",
+  "operationId": "getRemoteAccessPolicies",
+  "tag": "SSL VPN remote access policies",
+  "summary": "Get all policies",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/ssl-vpn/remote-access/policies/{idOrName}",
+  "operationId": "getRemoteAccessPolicy",
+  "tag": "SSL VPN remote access policies",
+  "summary": "Get a policy",
+  "query": []
+ },
+ {
+  "path": "/system/backup/settings",
+  "operationId": "getBackupScheduleSettings",
+  "tag": "System backup settings",
+  "summary": "Get a backup schedule",
+  "query": []
+ },
+ {
+  "path": "/system/hotfix/settings",
+  "operationId": "getHotfix",
+  "tag": "System hotfix settings",
+  "summary": "Retrieve hotfix settings",
+  "query": []
+ },
+ {
+  "path": "/system/pattern-updates/settings",
+  "operationId": "getPatternSettings",
+  "tag": "System automatic pattern updates",
+  "summary": "Get auto-update settings",
+  "query": []
+ },
+ {
+  "path": "/system/security-updates",
+  "operationId": "listSecurityUpdates",
+  "tag": "System security updates",
+  "summary": "List security updates",
+  "query": []
+ },
+ {
+  "path": "/tls-inspection/decryption-profiles",
+  "operationId": "getDecryptionProfiles",
+  "tag": "SSL/TLS inspection decryption profiles",
+  "summary": "List decryption profiles",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/tls-inspection/decryption-profiles/{idOrName}",
+  "operationId": "getDecryptionProfile",
+  "tag": "SSL/TLS inspection decryption profiles",
+  "summary": "Get decryption profile",
+  "query": []
+ },
+ {
+  "path": "/tls-inspection/rules/ipv4",
+  "operationId": "listSslTlsInspectionRules",
+  "tag": "SSL/TLS inspection rules",
+  "summary": "List SSL TLS rules",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/tls-inspection/rules/ipv4/{idOrName}",
+  "operationId": "getSslTlsInspectionRule",
+  "tag": "SSL/TLS inspection rules",
+  "summary": "Get an SSL TLS rule",
+  "query": []
+ },
+ {
+  "path": "/tls-inspection/settings",
+  "operationId": "getSslTlsInspectionSettings",
+  "tag": "SSL/TLS inspection settings",
+  "summary": "Get TLS settings",
+  "query": []
+ },
+ {
+  "path": "/traffic-shaping/policies",
+  "operationId": "listTrafficShapingPolicies",
+  "tag": "Traffic shaping policies",
+  "summary": "Get all policies",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/traffic-shaping/policies/{idOrName}",
+  "operationId": "getTrafficShapingPolicy",
+  "tag": "Traffic shaping policies",
+  "summary": "Get a policy",
+  "query": []
+ },
+ {
+  "path": "/traffic-shaping/settings",
+  "operationId": "getTrafficShapingSettings",
+  "tag": "Traffic shaping settings",
+  "summary": "Get settings",
+  "query": []
+ },
+ {
+  "path": "/waf/authentication/policies",
+  "operationId": "listAuthenticationPolicies",
+  "tag": "WAF authentication policies",
+  "summary": "List policies",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/waf/authentication/policies/{idOrName}",
+  "operationId": "getAuthenticationPolicy",
+  "tag": "WAF authentication policies",
+  "summary": "Get policy",
+  "query": []
+ },
+ {
+  "path": "/waf/authentication/templates",
+  "operationId": "listAuthenticationTemplates",
+  "tag": "WAF authentication templates",
+  "summary": "Get all templates",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/waf/authentication/templates/{idOrName}",
+  "operationId": "getAuthenticationTemplate",
+  "tag": "WAF authentication templates",
+  "summary": "Get a template",
+  "query": []
+ },
+ {
+  "path": "/waf/protection/policies",
+  "operationId": "listProtectionPolicies",
+  "tag": "WAF protection policies",
+  "summary": "List protection policies",
+  "query": [
+   "name",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/waf/protection/policies/{idOrName}",
+  "operationId": "getProtectionPolicy",
+  "tag": "WAF protection policies",
+  "summary": "Get protection policy",
+  "query": []
+ },
+ {
+  "path": "/waf/servers",
+  "operationId": "listWebServers",
+  "tag": "WAF web servers",
+  "summary": "List web servers",
+  "query": [
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/waf/servers/{idOrName}",
+  "operationId": "getWebServer",
+  "tag": "WAF web servers",
+  "summary": "Get web server",
+  "query": []
+ },
+ {
+  "path": "/web/categories",
+  "operationId": "listWebFilterCategories",
+  "tag": "Web filter categories",
+  "summary": "List web categories",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/web/categories/{idOrName}",
+  "operationId": "getWebFilterCategory",
+  "tag": "Web filter categories",
+  "summary": "Get a web category",
+  "query": []
+ },
+ {
+  "path": "/web/content-filters",
+  "operationId": "listContentFilters",
+  "tag": "Web filter content condition lists",
+  "summary": "List content filters",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/web/content-filters/{idOrName}",
+  "operationId": "getContentFilter",
+  "tag": "Web filter content condition lists",
+  "summary": "Get a content filter",
+  "query": []
+ },
+ {
+  "path": "/web/exceptions",
+  "operationId": "listWebFilterExceptions",
+  "tag": "Web filter exceptions",
+  "summary": "List web exceptions",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/web/exceptions/{idOrName}",
+  "operationId": "getWebFilterException",
+  "tag": "Web filter exceptions",
+  "summary": "Get a web exception",
+  "query": []
+ },
+ {
+  "path": "/web/policies",
+  "operationId": "listWebFilterPolicies",
+  "tag": "Web filter policies",
+  "summary": "List web policies",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/web/policies/{idOrName}",
+  "operationId": "getWebFilterPolicy",
+  "tag": "Web filter policies",
+  "summary": "Get a web policy",
+  "query": []
+ },
+ {
+  "path": "/web/scan-settings",
+  "operationId": "getWebScanSettings",
+  "tag": "Web filter protection settings",
+  "summary": "Get scan settings",
+  "query": []
+ },
+ {
+  "path": "/web/url-groups",
+  "operationId": "listWebFilterUrlGroups",
+  "tag": "Web filter URL groups",
+  "summary": "List URL groups",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/web/url-groups/{idOrName}",
+  "operationId": "getWebFilterUrlGroup",
+  "tag": "Web filter URL groups",
+  "summary": "Get a URL group",
+  "query": []
+ },
+ {
+  "path": "/web/user-activities",
+  "operationId": "listUserActivities",
+  "tag": "Web filter user activities",
+  "summary": "List user activities",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/web/user-activities/{idOrName}",
+  "operationId": "getUserActivity",
+  "tag": "Web filter user activities",
+  "summary": "Get a user activity",
+  "query": []
+ },
+ {
+  "path": "/web/user-notifications",
+  "operationId": "getWebFilterNotificationSettings",
+  "tag": "Web filter user notification settings",
+  "summary": "Get notification settings",
+  "query": []
+ },
+ {
+  "path": "/wireless/hotspot/hotspots",
+  "operationId": "listHotspots",
+  "tag": "Wireless hotspots",
+  "summary": "Get all hotspots",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/wireless/hotspot/hotspots/{idOrName}",
+  "operationId": "getHotspot",
+  "tag": "Wireless hotspots",
+  "summary": "Get a hotspot",
+  "query": []
+ },
+ {
+  "path": "/wireless/hotspot/settings",
+  "operationId": "getHotspotSettings",
+  "tag": "Wireless hotspot settings",
+  "summary": "Get hotspot settings",
+  "query": []
+ },
+ {
+  "path": "/wireless/hotspot/vouchers",
+  "operationId": "listVouchers",
+  "tag": "Wireless hotspot vouchers",
+  "summary": "Get all vouchers",
+  "query": [
+   "nameContains",
+   "nameNotEquals",
+   "page",
+   "pageSize",
+   "pageTotal"
+  ]
+ },
+ {
+  "path": "/wireless/hotspot/vouchers/{idOrName}",
+  "operationId": "getVoucher",
+  "tag": "Wireless hotspot vouchers",
+  "summary": "Get a voucher",
+  "query": []
+ },
+ {
+  "path": "/zero-day-protection/settings",
+  "operationId": "getZeroDayProtectionSettings",
+  "tag": "Zero-day protection",
+  "summary": "Get zero-day settings",
+  "query": []
+ }
+]

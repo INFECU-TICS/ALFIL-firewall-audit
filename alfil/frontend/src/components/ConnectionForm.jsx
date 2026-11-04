@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "../api";
 import { CheckCircle, XCircle, Loader2, Info } from "lucide-react";
 
-const DEFAULTS = { name: "", host: "", port: 4444, username: "", password: "", verify_ssl: false, api_type: "xml" };
+const DEFAULTS = { name: "", host: "", port: 4444, username: "", password: "", verify_ssl: false, api_type: "xml", mcp_enabled: false };
 
 function PrereqBanner({ isRest }) {
   const [publicIp, setPublicIp] = useState(null);
@@ -60,7 +60,7 @@ export default function ConnectionForm({ initial = {}, onSave, onCancel }) {
   const typeChanged = !!initial.id && form.api_type !== (initial.api_type || "xml");
 
   const setApiType = (api_type) => {
-    setForm((f) => ({ ...f, api_type }));
+    setForm((f) => ({ ...f, api_type, mcp_enabled: api_type === "rest" ? f.mcp_enabled : false }));
     setTestResult(null);
   };
 
@@ -89,7 +89,7 @@ export default function ConnectionForm({ initial = {}, onSave, onCancel }) {
     setSaving(true);
     setError("");
     try {
-      const payload = { ...form, port: Number(form.port), username: isRest ? undefined : form.username };
+      const payload = { ...form, port: Number(form.port), username: isRest ? undefined : form.username, mcp_enabled: isRest && !!form.mcp_enabled };
       if (!payload.password) delete payload.password; // edición sin cambiar el secreto
       await onSave(payload);
     } catch (e) {
@@ -142,6 +142,15 @@ export default function ConnectionForm({ initial = {}, onSave, onCancel }) {
         <input className="input" type="password" value={form.password} onChange={set("password")}
           placeholder={initial.id && !typeChanged ? "Dejar en blanco para no cambiar" : ""} required={!initial.id || typeChanged} autoComplete="off" />
       </div>
+      {isRest && (
+        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50">
+          <input type="checkbox" id="mcp" checked={!!form.mcp_enabled} onChange={set("mcp_enabled")} className="rounded mt-0.5" />
+          <label htmlFor="mcp" className="text-sm text-gray-700">
+            Disponible en MCP
+            <span className="block text-xs text-gray-500">Un asistente de IA podrá leer este firewall (solo lectura) a través del servidor MCP. ALFIL conserva la API key.</span>
+          </label>
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <input type="checkbox" id="ssl" checked={form.verify_ssl} onChange={set("verify_ssl")} className="rounded" />
         <label htmlFor="ssl" className="text-sm text-gray-700">Verificar certificado SSL</label>

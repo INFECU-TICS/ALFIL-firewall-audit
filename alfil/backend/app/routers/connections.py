@@ -50,6 +50,7 @@ def create_connection(payload: ConnectionConfigCreate, db: Session = Depends(get
         password_encrypted=_encrypt(payload.password),
         verify_ssl=payload.verify_ssl,
         api_type=payload.api_type,
+        mcp_enabled=payload.mcp_enabled,
         is_active=payload.is_active,
     )
     db.add(obj)
@@ -75,6 +76,11 @@ def update_connection(connection_id: int, payload: ConnectionConfigUpdate, db: S
     update_data = payload.model_dump(exclude_unset=True)
     if update_data.get("api_type") == "rest":
         update_data["username"] = REST_PLACEHOLDER_USER  # en modo REST no se usa usuario
+    final_type = update_data.get("api_type", obj.api_type)
+    if final_type != "rest":
+        if update_data.get("mcp_enabled"):
+            raise HTTPException(status_code=400, detail="Solo las conexiones REST pueden habilitarse para el MCP")
+        update_data["mcp_enabled"] = False  # al pasar a XML se retira del MCP
     if "password" in update_data:
         obj.password_encrypted = _encrypt(update_data.pop("password"))
 

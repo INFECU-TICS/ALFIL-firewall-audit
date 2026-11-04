@@ -10,6 +10,7 @@ Servidor MCP **de solo lectura** para Sophos Firewall v23 sobre su REST API v1 (
 
 | Tool | Qué hace |
 |---|---|
+| `list_connections()` | Firewalls disponibles: conexiones habilitadas en ALFIL («Disponible en MCP») y la directa |
 | `list_api_endpoints(search, limit)` | Busca entre los 266 endpoints GET de la API v23 |
 | `api_get(path, query)` | GET genérico sobre cualquiera de esas rutas (ej. `/network/zones`) |
 | `list_firewall_rules(only_enabled)` | Resumen de reglas IPv4 |
@@ -17,6 +18,8 @@ Servidor MCP **de solo lectura** para Sophos Firewall v23 sobre su REST API v1 (
 | `audit_firewall()` | Hallazgos de reglas (Any→Any, sin log, duplicadas, deshabilitadas) y score 0–100 |
 
 Resource: `firewall://summary`. Próximo: hardening de admin (MFA, acceso WAN), objetos sin uso, `explain_rule_match`.
+
+Todas las herramientas que consultan un firewall aceptan `connection` (nombre o id de ALFIL, o `directa`). Con ALFIL configurado, el MCP envía un latido cada 30 s para que el dashboard muestre su estado. Ver la guía de usuario (sección 5) para la puesta en marcha.
 
 ## Instalación
 
@@ -30,7 +33,10 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
 | Variable | Notas |
 |---|---|
-| `SFOS_HOST` | IP/hostname del firewall (requerida) |
+| `ALFIL_URL` | URL de ALFIL: usa sus conexiones habilitadas en el dashboard (ALFIL custodia las credenciales y hace de proxy de solo lectura) |
+| `ALFIL_MCP_TOKEN` | Token generado en el dashboard de ALFIL (panel «Servidor MCP») |
+| `ALFIL_VERIFY_SSL` | Default `true` |
+| `SFOS_HOST` | IP/hostname del firewall (modo directo) |
 | `SFOS_PORT` | Default `4444` |
 | `SFOS_TOKEN` | API key (*Administration › API access*). También se acepta `API_KEY` |
 | `SFOS_VERIFY_SSL` | Default `true`; `false` para certificado autofirmado de laboratorio |

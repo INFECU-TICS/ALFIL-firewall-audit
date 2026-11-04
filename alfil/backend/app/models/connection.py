@@ -16,6 +16,8 @@ class ConnectionConfig(Base):
     verify_ssl = Column(Boolean, default=True)
     # 'xml' = API XML legacy (usuario/contraseña); 'rest' = REST API v1 de SFOS v23 (API key en password_encrypted)
     api_type = Column(String(10), nullable=False, default="xml", server_default="xml")
+    # Disponible para el servidor MCP (solo conexiones REST; apagado por defecto)
+    mcp_enabled = Column(Boolean, nullable=False, default=False, server_default="0")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

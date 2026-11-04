@@ -6,7 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import Base, engine, SessionLocal, ensure_schema
 from app.models.audit_report import AuditReport  # noqa: ensure table is registered
-from app.routers import connections, audit
+from app.models.mcp_access import McpAccess  # noqa: ensure table is registered
+from app.routers import connections, audit, mcp
 
 Base.metadata.create_all(bind=engine)
 ensure_schema()
@@ -31,6 +32,7 @@ app.add_middleware(
 
 app.include_router(connections.router, prefix=settings.api_v1_prefix)
 app.include_router(audit.router, prefix=settings.api_v1_prefix)
+app.include_router(mcp.router, prefix=settings.api_v1_prefix)
 
 
 @app.on_event("startup")

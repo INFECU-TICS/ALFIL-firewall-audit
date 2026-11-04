@@ -55,6 +55,20 @@ def is_known_get_path(path: str) -> bool:
     return any(p.match(path) for p in _allowed_patterns())
 
 
+async def get_all_pages(get: Any, path: str, params: dict[str, Any] | None = None, max_items: int = 1000) -> list[Any]:
+    """Paginación común a todos los clientes: `get(path, params)` devuelve `{items, pages}`."""
+    items: list[Any] = []
+    page = 1
+    while len(items) < max_items:
+        data = await get(path, {**(params or {}), "page": page, "pageSize": PAGE_SIZE})
+        batch = data.get("items", []) if isinstance(data, dict) else []
+        items.extend(batch)
+        if len(batch) < PAGE_SIZE:
+            break
+        page += 1
+    return items[:max_items]
+
+
 class SophosClient:
     def __init__(self, settings: Settings, transport: httpx.AsyncBaseTransport | None = None):
         self._client = httpx.AsyncClient(
@@ -89,16 +103,7 @@ class SophosClient:
 
     async def get_all(self, path: str, params: dict[str, Any] | None = None, max_items: int = 1000) -> list[Any]:
         """Recorre todas las páginas de un listado `{items, pages}`."""
-        items: list[Any] = []
-        page = 1
-        while len(items) < max_items:
-            data = await self.get(path, {**(params or {}), "page": page, "pageSize": PAGE_SIZE})
-            batch = data.get("items", []) if isinstance(data, dict) else []
-            items.extend(batch)
-            if len(batch) < PAGE_SIZE:
-                break
-            page += 1
-        return items[:max_items]
+        return await get_all_pages(self.get, path, params, max_items)
 
 
 def _describe_error(resp: httpx.Response) -> str:

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, Play, Wifi, WifiOff, Loader2, AlertCircle, Database } from "lucide-react";
+import { Plus, Pencil, Trash2, Play, Wifi, WifiOff, Loader2, AlertCircle, Database, Bot } from "lucide-react";
 import { api } from "../api";
 import Modal from "../components/Modal";
 import ConfirmModal from "../components/ConfirmModal";
 import ConnectionForm from "../components/ConnectionForm";
+import McpStatusCard from "../components/McpStatusCard";
 
 function StatusDot({ active }) {
   return <span className={`inline-block w-2.5 h-2.5 rounded-full ${active ? "bg-green-500" : "bg-gray-300"}`} />;
@@ -19,6 +20,8 @@ export default function ConnectionsPage() {
   const [deletingId, setDeletingId] = useState(null);
   const [testingId, setTestingId] = useState(null);
   const [testResults, setTestResults] = useState({});
+  const [mcpRefresh, setMcpRefresh] = useState(0);
+  const [togglingMcp, setTogglingMcp] = useState(null);
   const navigate = useNavigate();
 
   const load = async () => {
@@ -32,6 +35,13 @@ export default function ConnectionsPage() {
 
   const handleCreate = async (data) => { await api.createConnection(data); setModal(null); load(); };
   const handleUpdate = async (data) => { await api.updateConnection(modal.id, data); setModal(null); load(); };
+
+  const toggleMcp = async (conn) => {
+    setTogglingMcp(conn.id);
+    try { await api.updateConnection(conn.id, { mcp_enabled: !conn.mcp_enabled }); await load(); setMcpRefresh((n) => n + 1); }
+    catch (e) { alert(e.message); }
+    finally { setTogglingMcp(null); }
+  };
 
   const handleDeleteConfirmed = async () => {
     const { id } = confirmDelete;
@@ -66,6 +76,8 @@ export default function ConnectionsPage() {
           <Plus className="w-4 h-4" /> Nueva conexión
         </button>
       </div>
+
+      <McpStatusCard refreshKey={mcpRefresh} />
 
       {error && (
         <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 mb-4">
@@ -115,6 +127,20 @@ export default function ConnectionsPage() {
                   </p>
                   {conn.api_type !== "rest" && <p><span className="font-medium">Usuario:</span> {conn.username}</p>}
                   <p><span className="font-medium">SSL:</span> {conn.verify_ssl ? "Sí" : "No"}</p>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 text-xs rounded-lg bg-gray-50 px-2.5 py-1.5">
+                  <span className="flex items-center gap-1.5 text-gray-600">
+                    <Bot className="w-3.5 h-3.5" />
+                    {conn.api_type !== "rest" ? "MCP: solo conexiones REST" : conn.mcp_enabled ? "Disponible en MCP" : "No disponible en MCP"}
+                  </span>
+                  {conn.api_type === "rest" && (
+                    <button role="switch" aria-checked={!!conn.mcp_enabled} title="Usar esta conexión a través del MCP"
+                      disabled={togglingMcp === conn.id} onClick={() => toggleMcp(conn)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ${conn.mcp_enabled ? "bg-green-500" : "bg-gray-300"}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${conn.mcp_enabled ? "translate-x-4" : "translate-x-0.5"}`} />
+                    </button>
+                  )}
                 </div>
 
                 {tr && (

@@ -21,6 +21,8 @@ for path, item in spec["paths"].items():
         "query": sorted({p["name"] for p in params if p.get("in") == "query"}),
     })
 catalog.sort(key=lambda e: e["path"])
-out = ROOT / "src/alfil_mcp/data/get_catalog.json"
-out.write_text(json.dumps(catalog, indent=1, ensure_ascii=False), encoding="utf8")
-print(f"{len(catalog)} GET endpoints -> {out}")
+# Se escribe en el MCP y en el backend de ALFIL (el proxy del backend valida las mismas rutas).
+for out in (ROOT / "src/alfil_mcp/data/get_catalog.json", ROOT.parent / "alfil/backend/app/data/get_catalog.json"):
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(catalog, indent=1, ensure_ascii=False), encoding="utf8")
+    print(f"{len(catalog)} GET endpoints -> {out}")

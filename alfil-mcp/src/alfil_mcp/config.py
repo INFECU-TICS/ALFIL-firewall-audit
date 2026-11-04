@@ -38,6 +38,14 @@ class Settings:
         return f"https://{self.host}:{self.port}{BASE_PATH}"
 
     @classmethod
+    def try_from_env(cls) -> "Settings | None":
+        """Modo directo (SFOS_HOST + token). Devuelve None si no se configuró SFOS_HOST; si falta solo el token, falla."""
+        file_values = _read_env_file(Path(os.environ["SFOS_ENV_FILE"])) if os.environ.get("SFOS_ENV_FILE") else {}
+        if not (os.environ.get("SFOS_HOST") or file_values.get("SFOS_HOST")):
+            return None
+        return cls.from_env()
+
+    @classmethod
     def from_env(cls) -> "Settings":
         # SFOS_ENV_FILE permite apuntar a un .env (p. ej. el del repo ALFIL, que usa API_KEY).
         file_values = _read_env_file(Path(os.environ["SFOS_ENV_FILE"])) if os.environ.get("SFOS_ENV_FILE") else {}
@@ -63,3 +71,30 @@ class Settings:
             token=token,
             verify_ssl=(get("SFOS_VERIFY_SSL") or "true").lower() not in ("0", "false", "no"),
         )
+
+
+@dataclass(frozen=True)
+class AlfilSettings:
+    """Integración con ALFIL: el MCP usa las conexiones habilitadas en el dashboard; ALFIL custodia las credenciales."""
+    url: str
+    token: str = field(default="", repr=False)
+    verify_ssl: bool = True
+    timeout: float = 120.0  # ALFIL consulta al firewall en nombre del MCP; los equipos lentos tardan
+
+    @property
+    def api_base(self) -> str:
+        return f"{self.url.rstrip('/')}/api/v1/mcp"
+
+    @classmethod
+    def from_env(cls) -> "AlfilSettings | None":
+        file_values = _read_env_file(Path(os.environ["SFOS_ENV_FILE"])) if os.environ.get("SFOS_ENV_FILE") else {}
+
+        def get(name: str) -> str | None:
+            return os.environ.get(name) or file_values.get(name)
+
+        url, token = get("ALFIL_URL"), get("ALFIL_MCP_TOKEN")
+        if not url and not token:
+            return None
+        if not url or not token:
+            raise ConfigError("La integración con ALFIL requiere ALFIL_URL y ALFIL_MCP_TOKEN (token generado en el dashboard).")
+        return cls(url=url, token=token, verify_ssl=(get("ALFIL_VERIFY_SSL") or "true").lower() not in ("0", "false", "no"))
