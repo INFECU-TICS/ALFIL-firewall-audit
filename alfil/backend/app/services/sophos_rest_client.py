@@ -128,8 +128,23 @@ class SophosRestClient:
     def get_service_groups(self):
         return self._list("/network/service-groups", nz.normalize_named_object)
 
+    def get_interface_bundle(self) -> Dict[str, Dict[str, Any]]:
+        """Un solo pedido alimenta interfaces, vlans, lags y aliases (en REST son el mismo recurso)."""
+        try:
+            parts = nz.split_interfaces(self._get_all("/network/interfaces/network-interfaces"))
+        except RestError as e:
+            err = {"success": False, "error": str(e)}
+            return {k: dict(err) for k in ("interfaces", "vlans", "lags", "aliases")}
+        return {k: {"success": True, "data": v, "count": len(v)} for k, v in parts.items()}
+
     def get_interfaces(self):
-        return self._list("/network/interfaces/network-interfaces", nz.normalize_interface)
+        return self.get_interface_bundle()["interfaces"]
+
+    def get_static_routes(self):
+        return self._list("/routing/static-unicast-routes/ipv4", nz.normalize_static_route)
+
+    def get_vpn_ipsec_connections(self):
+        return self._list("/ipsec-vpn/site-to-site/connections/ipv4", nz.normalize_vpn_ipsec)
 
     def get_gateways(self):
         return self._list("/routing/gateways/ipv4", nz.normalize_gateway)
@@ -166,7 +181,9 @@ class SophosRestClient:
         implemented: Dict[str, Callable[[], Dict[str, Any]]] = {
             "admin_settings": self.get_admin_settings, "device_access": self.get_device_access,
             "notification_settings": self.get_notification_settings, "admin_users": self.get_admin_users,
-            "zones": self.get_network_zones, "interfaces": self.get_interfaces, "gateways": self.get_gateways,
+            "zones": self.get_network_zones, "gateways": self.get_gateways,
+            "static_routes": self.get_static_routes, "vpn_ipsec_connections": self.get_vpn_ipsec_connections,
+            "_interface_bundle": self.get_interface_bundle,
             "hosts": self.get_hosts, "services": self.get_services, "service_groups": self.get_service_groups,
             "firewall_rules": self.get_firewall_rules, "nat_rules": self.get_nat_rules,
         }
@@ -180,6 +197,10 @@ class SophosRestClient:
                 except Exception as e:  # un colector no debe tumbar la auditoría
                     logger.warning("Collector REST '%s' failed: %s", key, e)
                     results[key] = {"success": False, "error": str(e)}
+        bundle = results.pop("_interface_bundle", {})
+        if "success" in bundle:  # el pedido falló: propagar el error a las cuatro claves
+            bundle = {k: dict(bundle) for k in ("interfaces", "vlans", "lags", "aliases")}
+        results.update(bundle)  # interfaces, vlans, lags, aliases
         return results
 
     # -- Consultas ad-hoc ("Obtener Info") ----------------------------------
@@ -210,7 +231,11 @@ class SophosRestClient:
         elif query_type == "services":
             data = [nz.normalize_named_object(x) for x in raw]
         elif query_type == "interface_info":
-            data = [{**nz.normalize_interface(x), "vlans": [], "aliases": [], "lags": []} for x in raw]
+            parts = nz.split_interfaces(raw)
+            data = [{**i,
+                     "vlans": [v for v in parts["vlans"] if v["interface"] == i["name"]],
+                     "aliases": [a for a in parts["aliases"] if a["interface"] == i["name"]],
+                     "lags": [l for l in parts["lags"] if i["name"] in l["members"]]} for i in parts["interfaces"]]
         else:
             data = {
                 "ip_hosts": [nz.normalize_host(h) for h in raw],

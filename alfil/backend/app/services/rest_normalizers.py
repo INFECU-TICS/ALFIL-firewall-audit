@@ -132,18 +132,32 @@ def normalize_zone(zone: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+_HOST_TYPES = {"ipv4Address": "IP", "ipv4Network": "Network", "ipv4Range": "IPRange", "ipv4List": "IPList",
+               "ipv6Address": "IP", "ipv6Network": "Network", "ipv6Range": "IPRange", "ipv6List": "IPList"}
+
+
 def normalize_host(host: dict[str, Any]) -> dict[str, Any]:
-    addrs = host.get("ipv4Addresses") or host.get("ipv6Addresses") or []
-    flat = [a if isinstance(a, str) else str(a.get("name", a)) if isinstance(a, dict) else str(a) for a in addrs]
+    """Objetos de host v23 -> campos del colector XML (HostType IP/Network/IPRange/IPList)."""
+    htype = host.get("type", "")
+    ip = subnet = start = end = ""
+    if htype == "ipv4Address":
+        ip = host.get("ipv4Address", "")
+    elif htype == "ipv4Network":
+        ip, subnet = host.get("ipv4NetworkAddress", ""), _netmask(host.get("cidr"))
+    elif htype == "ipv4Range":
+        start, end = host.get("ipv4AddressStart", ""), host.get("ipv4AddressEnd", "")
+    elif htype == "ipv4List":
+        ip = ", ".join(a if isinstance(a, str) else str(a.get("ipv4Address", a)) if isinstance(a, dict) else str(a)
+                       for a in host.get("ipv4Addresses") or [])
     return {
         "name": host.get("name", ""),
         "description": host.get("description", ""),
-        "ip_family": "IPv4",
-        "type": host.get("type", ""),
-        "ip_address": ", ".join(flat),
-        "subnet": "",
-        "start_ip": "",
-        "end_ip": "",
+        "ip_family": "IPv6" if htype.startswith("ipv6") else "IPv4",
+        "type": _HOST_TYPES.get(htype, htype),
+        "ip_address": ip,
+        "subnet": subnet,
+        "start_ip": start,
+        "end_ip": end,
         "raw": host,
     }
 
@@ -166,7 +180,9 @@ def normalize_interface(iface: dict[str, Any]) -> dict[str, Any]:
         "name": iface.get("name", ""),
         "hardware": iface.get("hardwareName", ""),
         "zone": ref_name(iface.get("zone")),
-        "interface_status": "",
+        "interface_status": "ON" if iface.get("enabled") else "OFF",  # estado administrativo (la API de configuración no da el enlace)
+        "type": iface.get("type", "physical"),
+        "gateway_ip": v4.get("gatewayIpAddress", "") or "",
         "ip_address": v4.get("ipv4Address", "") or "",
         "netmask": _netmask(v4.get("cidr")),
         "ipv4_assignment": v4.get("assignmentType", ""),
@@ -248,3 +264,116 @@ def build_device_access(zones: list[dict[str, Any]], acl_rules: list[dict[str, A
                     "services": selector_names({"services": r.get("services")}),
                     "action": str(r.get("action", "")).capitalize(), "raw": r})
     return out
+
+
+# ---------------------------------------------------------------------------
+# Interfaces virtuales, rutas y VPN (insumos del grafo de topología)
+# ---------------------------------------------------------------------------
+
+def normalize_vlan(iface: dict[str, Any]) -> dict[str, Any]:
+    v4 = iface.get("ipv4") or {}
+    details = iface.get("vlanDetails") or {}
+    return {
+        "name": iface.get("name", ""),
+        "vlan_id": details.get("vlanId", ""),
+        "zone": ref_name(iface.get("zone")),
+        "interface": ref_name(details.get("parentInterface")),
+        "hardware": iface.get("hardwareName", "") or iface.get("name", ""),
+        "interface_status": "ON" if iface.get("enabled") else "OFF",
+        "ip_address": v4.get("ipv4Address", "") or "",
+        "netmask": _netmask(v4.get("cidr")),
+        "ipv4_assignment": v4.get("assignmentType", ""),
+        "status": _enable(iface.get("enabled")),
+        "raw": iface,
+    }
+
+
+def normalize_lag(iface: dict[str, Any]) -> dict[str, Any]:
+    v4 = iface.get("ipv4") or {}
+    members = [ref_name(m.get("interface")) for m in (iface.get("lagDetails") or {}).get("members", []) if isinstance(m, dict)]
+    return {
+        "name": iface.get("name", ""),
+        "description": iface.get("description", ""),
+        "zone": ref_name(iface.get("zone")),
+        "members": members,
+        "ip_address": v4.get("ipv4Address", "") or "",
+        "netmask": _netmask(v4.get("cidr")),
+        "status": _enable(iface.get("enabled")),
+        "raw": iface,
+    }
+
+
+def normalize_alias(parent: dict[str, Any], secondary: dict[str, Any], index: int) -> dict[str, Any]:
+    return {
+        "name": f"{parent.get('name', '')}:{index}",
+        "interface": parent.get("name", ""),
+        "ip_family": "IPv4",
+        "ip_address": secondary.get("ipv4Address", ""),
+        "netmask": _netmask(secondary.get("cidr")),
+        "raw": secondary,
+    }
+
+
+def split_interfaces(items: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """Separa /network/interfaces/network-interfaces en las claves que usa el auditor (como en XML)."""
+    out: dict[str, list[dict[str, Any]]] = {"interfaces": [], "vlans": [], "lags": [], "aliases": []}
+    for i in items:
+        kind = i.get("type", "physical")
+        if kind == "vlan":
+            out["vlans"].append(normalize_vlan(i))
+        elif kind == "lag":
+            out["lags"].append(normalize_lag(i))
+        else:  # physical, bridge, etc.
+            out["interfaces"].append(normalize_interface(i))
+        for n, sec in enumerate((i.get("ipv4") or {}).get("secondaryAddresses") or []):
+            if isinstance(sec, dict):
+                out["aliases"].append(normalize_alias(i, sec, n))
+    return out
+
+
+def normalize_static_route(route: dict[str, Any]) -> dict[str, Any]:
+    """Mismos nombres de campo que devuelve la API XML (UnicastRoute)."""
+    return {
+        "Name": route.get("name", ""),
+        "DestinationIP": route.get("destinationAddressIpv4", ""),
+        "Netmask": _netmask(route.get("cidr")),
+        "Gateway": route.get("gatewayIpv4", "") or "",
+        "Interface": ref_name(route.get("interface")),
+        "Distance": route.get("metric", ""),
+        "AdministrativeDistance": route.get("administrativeDistance", ""),
+        "raw": route,
+    }
+
+
+def _vpn_networks(selector: Any) -> list[str]:
+    if not isinstance(selector, dict) or not selector:
+        return []
+    if selector.get("any") is True:
+        return ["Any"]
+    out: list[str] = []
+    for key in ("ipv4Addresses", "ipv4Groups", "fqdnAddresses", "fqdnGroups"):
+        for item in selector.get(key) or []:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name") or ref_name(item.get("ipv4Address"))
+            if name:
+                out.append(name)
+    return out
+
+
+def normalize_vpn_ipsec(conn: dict[str, Any]) -> dict[str, Any]:
+    gw = conn.get("gatewaySettings") or {}
+    remote = gw.get("remoteGateway") or {}
+    protected = conn.get("protectedNetworks") or {}
+    return {
+        "name": conn.get("name", ""),
+        "description": conn.get("description", ""),
+        "status": "Enable" if conn.get("activateConnection") else "Disable",
+        "connection_type": conn.get("type", ""),
+        "local_gateway": ref_name(gw.get("localGateway")).lstrip("#"),
+        "remote_gateway": remote.get("ipv4Address") or remote.get("fqdn") or "",
+        "policy": ref_name(conn.get("profile")),
+        "local_networks": _vpn_networks(protected.get("localNetworksIpv4")),
+        "remote_networks": _vpn_networks(protected.get("remoteNetworksIpv4")),
+        "raw": conn,
+    }

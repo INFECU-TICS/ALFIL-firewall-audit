@@ -132,6 +132,18 @@ def get_audit_report(audit_id: int, db: Session = Depends(get_db)):
     return audit.report
 
 
+@router.get("/reports/{audit_id}/topology")
+def get_audit_topology(audit_id: int, db: Session = Depends(get_db)):
+    """Grafo de topología (nodos y aristas) calculado al ejecutar la auditoría."""
+    audit = _get_audit_or_404(audit_id, db)
+    if audit.status != "completed":
+        raise HTTPException(status_code=409, detail="La auditoría aún no termina")
+    topo = (audit.report or {}).get("topology")
+    if not topo:
+        raise HTTPException(status_code=404, detail="Esta auditoría no incluye topología (fue ejecutada antes de esta función). Ejecute una auditoría nueva.")
+    return topo
+
+
 @router.delete("/reports/{audit_id}", status_code=204)
 def delete_audit(audit_id: int, db: Session = Depends(get_db)):
     """Elimina una auditoría del historial."""

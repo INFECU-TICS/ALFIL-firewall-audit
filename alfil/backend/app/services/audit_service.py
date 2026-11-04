@@ -4,6 +4,7 @@ Analiza los datos recolectados y genera un reporte estructurado con hallazgos.
 """
 from __future__ import annotations
 
+from app.services.topology import build_topology
 from datetime import datetime, timezone
 from typing import Any
 
@@ -378,10 +379,16 @@ def generate_audit_report(connection_info: dict, raw_data: dict) -> dict:
     admin_raw = raw_data.get("admin_settings", {}).get("data", {})
     time_raw = raw_data.get("time_settings", {}).get("data", {})
 
+    try:
+        topology = build_topology(raw_data, connection_info)
+    except Exception as exc:  # la topología nunca debe tumbar la auditoría
+        topology = {"nodes": [], "edges": [], "meta": {"error": f"{type(exc).__name__}: {exc}", "warnings": [], "notes": []}}
+
     return {
         "connection": connection_info,
         "generated_at": generated_at,
         "summary": summary,
+        "topology": topology,
         "system": {
             "hostname": system_raw.get("Hostname") or (admin_raw.get("HostnameSettings") or {}).get("HostName") or admin_raw.get("Hostname", ""),
             "model": system_raw.get("Model", ""),

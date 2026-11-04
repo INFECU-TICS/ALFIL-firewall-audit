@@ -1050,6 +1050,9 @@ class SophosFirewallClient:
                 "local_gateway": item.get("LocalGateway", ""),
                 "remote_gateway": item.get("RemoteGateway", ""),
                 "policy": item.get("Policy", ""),
+                # Campos de redes protegidas: nombres de etiqueta por confirmar con un equipo que tenga VPN (best-effort)
+                "local_networks": _flatten_strings({k: x for k, x in item.items() if "local" in k.lower() and ("subnet" in k.lower() or "network" in k.lower())}),
+                "remote_networks": _flatten_strings({k: x for k, x in item.items() if "remote" in k.lower() and ("subnet" in k.lower() or "network" in k.lower())}),
                 "raw": v,
             })
         return {"success": True, "data": parsed}
@@ -1302,6 +1305,17 @@ class SophosFirewallClient:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _flatten_strings(value: Any) -> list:
+    """Aplana str/dict/list anidados (salida de xmltodict) a una lista de textos."""
+    if isinstance(value, str):
+        return [value] if value.strip() else []
+    if isinstance(value, dict):
+        return [t for v in value.values() for t in _flatten_strings(v)]
+    if isinstance(value, list):
+        return [t for v in value for t in _flatten_strings(v)]
+    return []
+
 
 def _extract_list(rule: dict, container_key: str, item_key: str) -> list:
     """Extrae una lista de strings de estructuras anidadas del XML parseado."""
