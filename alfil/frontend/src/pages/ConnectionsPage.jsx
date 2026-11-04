@@ -107,7 +107,13 @@ export default function ConnectionsPage() {
 
                 <div className="text-sm text-gray-600 space-y-1">
                   <p><span className="font-medium">Host:</span> {conn.host}:{conn.port}</p>
-                  <p><span className="font-medium">Usuario:</span> {conn.username}</p>
+                  <p>
+                    <span className="font-medium">API:</span>{" "}
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${conn.api_type === "rest" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-700"}`}>
+                      {conn.api_type === "rest" ? "REST v23" : "XML"}
+                    </span>
+                  </p>
+                  {conn.api_type !== "rest" && <p><span className="font-medium">Usuario:</span> {conn.username}</p>}
                   <p><span className="font-medium">SSL:</span> {conn.verify_ssl ? "Sí" : "No"}</p>
                 </div>
 

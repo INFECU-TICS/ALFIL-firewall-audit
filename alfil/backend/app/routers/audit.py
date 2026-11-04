@@ -10,7 +10,7 @@ from app.models.connection import ConnectionConfig
 from app.services.audit_service import generate_audit_report
 from app.services.crypto import get_encryption_manager
 from app.services.export_service import generate_excel, generate_pdf, generate_zip
-from app.services.sophos_client import SophosFirewallClient
+from app.services.firewall_client import client_for_connection
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 
@@ -33,10 +33,8 @@ def _get_audit_or_404(audit_id: int, db: Session) -> AuditReport:
     return obj
 
 
-def _get_client(obj: ConnectionConfig) -> SophosFirewallClient:
-    password = get_encryption_manager().decrypt(obj.password_encrypted)
-    return SophosFirewallClient(host=obj.host, port=obj.port, username=obj.username,
-                                password=password, verify_ssl=obj.verify_ssl)
+def _get_client(obj: ConnectionConfig):
+    return client_for_connection(obj)
 
 
 def _audit_summary(report: dict) -> dict:
@@ -58,7 +56,8 @@ def _run_audit_task(audit_id: int, connection_id: int) -> None:
         client = _get_client(obj)
         raw_data = client.collect_audit_data()
         connection_info = {"id": obj.id, "name": obj.name, "host": obj.host,
-                           "port": obj.port, "username": obj.username}
+                           "port": obj.port, "username": obj.username,
+                           "api_type": getattr(obj, "api_type", "xml")}
         report = generate_audit_report(connection_info, raw_data)
 
         audit = db.query(AuditReport).filter(AuditReport.id == audit_id).first()

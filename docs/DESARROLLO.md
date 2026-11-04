@@ -62,7 +62,7 @@ docker compose up --build
 | ORM | SQLAlchemy 2.x |
 | Validation | Pydantic v2 |
 | Database | SQLite (volume-persisted in Docker) |
-| Firewall API | XML API over HTTPS port 4444 |
+| Firewall API | XML API (todas las versiones) o REST API v1 (SFOS v23), HTTPS puerto 4444 |
 | Encryption | Fernet + PBKDF2-HMAC-SHA256 |
 | Export | openpyxl (Excel), reportlab (PDF) |
 | Frontend | React 18 + Vite + TailwindCSS |
@@ -72,11 +72,12 @@ docker compose up --build
 
 - **`config.py`** — Pydantic `Settings`; lee env vars. `CORS_ORIGINS` se pasa como JSON string.
 - **`database.py`** — SQLAlchemy engine + `get_db()` dependency. Guard `"sqlite" in url` para `check_same_thread`.
-- **`models/connection.py`** — `ConnectionConfig`: host, port, username, `password_encrypted`, verify_ssl, timestamps.
+- **`models/connection.py`** — `ConnectionConfig`: host, port, username, `password_encrypted`, verify_ssl, `api_type` (`xml`|`rest`), timestamps. En modo `rest` `password_encrypted` guarda la API key y `username` es el placeholder `api-key`. `database.ensure_schema()` migra BD antiguas (añade `api_type`).
 - **`schemas/connection.py`** — `ConnectionConfigCreate/Update/Response`, `ConnectionTestRequest/Response`. La response nunca incluye password.
 - **`routers/connections.py`** — CRUD completo + `POST /connections/test` (ad-hoc) + `POST /connections/{id}/test` (guardada).
 - **`routers/audit.py`** — `POST /audit/{id}` → JSON report, `GET /audit/{id}/export/excel`, `GET /audit/{id}/export/pdf`.
 - **`services/sophos_client.py`** — `SophosFirewallClient`. `collect_audit_data()` llama todos los colectores secuencialmente; continúa si alguno falla. Helper `_extract_list()` normaliza estructuras XML anidadas (pueden ser str/dict/list).
+- **`services/firewall_client.py`** — fábrica: `client_for_connection(obj)` devuelve el cliente XML o REST según `api_type`. **`services/sophos_rest_client.py`** (REST API v23, solo lectura) + **`services/rest_normalizers.py`** (JSON REST → mismo formato que los colectores XML). Config: `SOPHOS_REQUEST_TIMEOUT` (90 s) y `SOPHOS_COLLECT_WORKERS` (4).
 - **`services/audit_service.py`** — `generate_audit_report(connection_info, raw_data)` → report dict con `summary`, `issues[]`, `sections{}`. Score 0–100.
 - **`services/crypto.py`** — `EncryptionManager` singleton. Fixed salt `alfil_salt_value`.
 
@@ -85,7 +86,7 @@ docker compose up --build
 - **`api.js`** — Todas las llamadas HTTP. Export URLs se abren con `window.open`.
 - **`pages/ConnectionsPage.jsx`** — Grid de conexiones: crear, editar, eliminar, probar, navegar a auditoría.
 - **`pages/AuditPage.jsx`** — Ejecuta auditoría, muestra score + hallazgos colapsables por sección + tablas de datos, botones exportación.
-- **`components/ConnectionForm.jsx`** — Form con botón "Probar conexión" antes de guardar.
+- **`components/ConnectionForm.jsx`** — Form con selector de tipo de API (XML / REST v23) y botón "Probar conexión" antes de guardar.
 - **`components/IssuesBadge.jsx`** — `SeverityBadge` y `ScoreRing`.
 
 ### Detecciones de auditoría implementadas

@@ -14,6 +14,8 @@ class ConnectionConfig(Base):
     username = Column(String(100), nullable=False)
     password_encrypted = Column(Text, nullable=False)
     verify_ssl = Column(Boolean, default=True)
+    # 'xml' = API XML legacy (usuario/contraseña); 'rest' = REST API v1 de SFOS v23 (API key en password_encrypted)
+    api_type = Column(String(10), nullable=False, default="xml", server_default="xml")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

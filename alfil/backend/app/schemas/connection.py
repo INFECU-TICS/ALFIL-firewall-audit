@@ -1,6 +1,10 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
+
+from pydantic import model_validator
+
+REST_PLACEHOLDER_USER = "api-key"  # la columna username es NOT NULL; en modo REST no se usa
 
 
 class ConnectionConfigBase(BaseModel):
@@ -8,14 +12,24 @@ class ConnectionConfigBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="Name of the connection")
     host: str = Field(..., min_length=1, max_length=255, description="IP or FQDN of the Sophos Firewall")
     port: int = Field(default=4444, ge=1, le=65535, description="API port (default: 4444)")
-    username: str = Field(..., min_length=1, max_length=100, description="API username")
+    username: str = Field(..., min_length=1, max_length=100, description="API username (en modo REST no se usa)")
+    api_type: Literal["xml", "rest"] = Field(default="xml", description="xml: usuario/contraseña; rest: API key (SFOS v23)")
     verify_ssl: bool = Field(default=True, description="Verify SSL certificate")
     is_active: bool = Field(default=True)
 
 
 class ConnectionConfigCreate(ConnectionConfigBase):
     """Schema for creating a new connection"""
-    password: str = Field(..., min_length=1, description="API password (will be encrypted)")
+    username: Optional[str] = Field(default=None, min_length=1, max_length=100, description="Obligatorio en modo xml")
+    password: str = Field(..., min_length=1, description="Contraseña (xml) o API key (rest); se guarda cifrada")
+
+    @model_validator(mode="after")
+    def _username_segun_modo(self):
+        if self.api_type == "xml" and not self.username:
+            raise ValueError("username es obligatorio en modo xml")
+        if self.api_type == "rest":
+            self.username = REST_PLACEHOLDER_USER
+        return self
 
 
 class ConnectionConfigUpdate(BaseModel):
@@ -27,6 +41,7 @@ class ConnectionConfigUpdate(BaseModel):
     password: Optional[str] = Field(None, min_length=1)
     verify_ssl: Optional[bool] = None
     is_active: Optional[bool] = None
+    api_type: Optional[Literal["xml", "rest"]] = None
 
 
 class ConnectionConfigResponse(ConnectionConfigBase):
@@ -43,9 +58,10 @@ class ConnectionTestRequest(BaseModel):
     """Schema for testing a connection"""
     host: str
     port: int = 4444
-    username: str
+    username: Optional[str] = None
     password: str
     verify_ssl: bool = True
+    api_type: Literal["xml", "rest"] = "xml"
 
 
 class ConnectionTestResponse(BaseModel):

@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { api } from "../api";
 import { CheckCircle, XCircle, Loader2, Info } from "lucide-react";
 
-const DEFAULTS = { name: "", host: "", port: 4444, username: "", password: "", verify_ssl: false };
+const DEFAULTS = { name: "", host: "", port: 4444, username: "", password: "", verify_ssl: false, api_type: "xml" };
 
-function PrereqBanner() {
+function PrereqBanner({ isRest }) {
   const [publicIp, setPublicIp] = useState(null);
 
   useEffect(() => {
@@ -21,7 +21,14 @@ function PrereqBanner() {
         Requisitos previos en el firewall Sophos
       </div>
       <ol className="list-decimal list-inside space-y-1.5 text-blue-800">
-        <li>Crear un usuario con perfil <span className="font-medium">Auditor</span> en el firewall.</li>
+        {isRest ? (
+          <li>
+            Generar una <span className="font-medium">API key</span> en{" "}
+            <span className="font-medium">Administración &rsaquo; Acceso API</span> (Sophos Firewall v23 o superior).
+          </li>
+        ) : (
+          <li>Crear un usuario con perfil <span className="font-medium">Auditor</span> en el firewall.</li>
+        )}
         <li>
           Autorizar la IP pública de este servidor en{" "}
           <span className="font-medium">Sistema &rsaquo; Administración &rsaquo; Acceso API</span>:{" "}
@@ -48,6 +55,15 @@ export default function ConnectionForm({ initial = {}, onSave, onCancel }) {
     setTestResult(null);
   };
 
+  const isRest = form.api_type === "rest";
+  // Al cambiar el tipo de una conexión existente hay que ingresar el nuevo secreto (contraseña ↔ API key)
+  const typeChanged = !!initial.id && form.api_type !== (initial.api_type || "xml");
+
+  const setApiType = (api_type) => {
+    setForm((f) => ({ ...f, api_type }));
+    setTestResult(null);
+  };
+
   const handleTest = async () => {
     setTesting(true);
     setTestResult(null);
@@ -55,9 +71,10 @@ export default function ConnectionForm({ initial = {}, onSave, onCancel }) {
       const res = await api.testNewConnection({
         host: form.host,
         port: Number(form.port),
-        username: form.username,
+        username: isRest ? undefined : form.username,
         password: form.password,
         verify_ssl: form.verify_ssl,
+        api_type: form.api_type,
       });
       setTestResult(res);
     } catch (e) {
@@ -72,7 +89,9 @@ export default function ConnectionForm({ initial = {}, onSave, onCancel }) {
     setSaving(true);
     setError("");
     try {
-      await onSave({ ...form, port: Number(form.port) });
+      const payload = { ...form, port: Number(form.port), username: isRest ? undefined : form.username };
+      if (!payload.password) delete payload.password; // edición sin cambiar el secreto
+      await onSave(payload);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -82,7 +101,22 @@ export default function ConnectionForm({ initial = {}, onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {!initial.id && <PrereqBanner />}
+      {!initial.id && <PrereqBanner isRest={isRest} />}
+      <div>
+        <label className="label">Tipo de API</label>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            ["xml", "API XML", "Usuario y contraseña. Todas las versiones."],
+            ["rest", "API REST v23", "API key. Más rápida; incluye MFA de administradores."],
+          ].map(([value, title, hint]) => (
+            <button key={value} type="button" onClick={() => setApiType(value)}
+              className={`text-left rounded-lg border p-2.5 text-sm transition ${form.api_type === value ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}>
+              <span className="block font-medium text-gray-800">{title}</span>
+              <span className="block text-xs text-gray-500 mt-0.5">{hint}</span>
+            </button>
+          ))}
+        </div>
+      </div>
       <div>
         <label className="label">Nombre / Empresa</label>
         <input className="input" value={form.name} onChange={set("name")} placeholder="Ej. Cliente ABC - FW Principal" required />
@@ -97,14 +131,16 @@ export default function ConnectionForm({ initial = {}, onSave, onCancel }) {
           <input className="input" type="number" value={form.port} onChange={set("port")} min={1} max={65535} required />
         </div>
       </div>
+      {!isRest && (
+        <div>
+          <label className="label">Usuario</label>
+          <input className="input" value={form.username} onChange={set("username")} placeholder="admin" required />
+        </div>
+      )}
       <div>
-        <label className="label">Usuario</label>
-        <input className="input" value={form.username} onChange={set("username")} placeholder="admin" required />
-      </div>
-      <div>
-        <label className="label">Contraseña</label>
+        <label className="label">{isRest ? "API key" : "Contraseña"}</label>
         <input className="input" type="password" value={form.password} onChange={set("password")}
-          placeholder={initial.id ? "Dejar en blanco para no cambiar" : ""} required={!initial.id} />
+          placeholder={initial.id && !typeChanged ? "Dejar en blanco para no cambiar" : ""} required={!initial.id || typeChanged} autoComplete="off" />
       </div>
       <div className="flex items-center gap-2">
         <input type="checkbox" id="ssl" checked={form.verify_ssl} onChange={set("verify_ssl")} className="rounded" />
@@ -128,7 +164,7 @@ export default function ConnectionForm({ initial = {}, onSave, onCancel }) {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="flex gap-2 pt-2">
-        <button type="button" className="btn-secondary" onClick={handleTest} disabled={testing || !form.host || !form.username || !form.password}>
+        <button type="button" className="btn-secondary" onClick={handleTest} disabled={testing || !form.host || (!isRest && !form.username) || !form.password}>
           {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           Probar conexión
         </button>

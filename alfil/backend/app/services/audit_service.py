@@ -82,7 +82,8 @@ def _analyze_admin_settings(data: dict) -> list[dict]:
 
     # HTTPS certificate (auto-signed?)
     cert = (settings.get("WebAdminSettings") or {}).get("Certificate") or settings.get("Certificate", "")
-    if str(cert).lower() in ("", "default", "appliance", "appliancecertificate"):
+    cert_reported = "WebAdminSettings" in settings or "Certificate" in settings  # REST no informa el certificado
+    if cert_reported and str(cert).lower() in ("", "default", "appliance", "appliancecertificate"):
         issues.append(_issue(WARNING, "system", "Certificado de administración auto-firmado o por defecto",
                              "Usar un certificado firmado por una CA de confianza reduce riesgos de MITM en la consola."))
     return issues
@@ -382,11 +383,11 @@ def generate_audit_report(connection_info: dict, raw_data: dict) -> dict:
         "generated_at": generated_at,
         "summary": summary,
         "system": {
-            "hostname": system_raw.get("Hostname", admin_raw.get("Hostname", "")),
+            "hostname": system_raw.get("Hostname") or (admin_raw.get("HostnameSettings") or {}).get("HostName") or admin_raw.get("Hostname", ""),
             "model": system_raw.get("Model", ""),
             "firmware": system_raw.get("FirmwareVersion", raw_data.get("system_status", {}).get("data", {}).get("FirmwareVersion", "")),
             "uptime": system_raw.get("UpTime", ""),
-            "timezone": time_raw.get("Timezone", ""),
+            "timezone": time_raw.get("TimeZone") or time_raw.get("Timezone", ""),
             "ntp_servers": raw_data.get("time_settings", {}).get("data", {}).get("NTPServer", []),
         },
         "issues": all_issues,

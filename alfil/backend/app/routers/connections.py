@@ -11,9 +11,10 @@ from app.schemas.connection import (
     ConnectionConfigResponse,
     ConnectionTestRequest,
     ConnectionTestResponse,
+    REST_PLACEHOLDER_USER,
 )
 from app.services.crypto import get_encryption_manager
-from app.services.sophos_client import SophosFirewallClient
+from app.services.firewall_client import build_client, client_for_connection
 
 router = APIRouter(prefix="/connections", tags=["connections"])
 
@@ -48,6 +49,7 @@ def create_connection(payload: ConnectionConfigCreate, db: Session = Depends(get
         username=payload.username,
         password_encrypted=_encrypt(payload.password),
         verify_ssl=payload.verify_ssl,
+        api_type=payload.api_type,
         is_active=payload.is_active,
     )
     db.add(obj)
@@ -71,6 +73,8 @@ def update_connection(connection_id: int, payload: ConnectionConfigUpdate, db: S
         raise HTTPException(status_code=404, detail="Conexión no encontrada")
 
     update_data = payload.model_dump(exclude_unset=True)
+    if update_data.get("api_type") == "rest":
+        update_data["username"] = REST_PLACEHOLDER_USER  # en modo REST no se usa usuario
     if "password" in update_data:
         obj.password_encrypted = _encrypt(update_data.pop("password"))
 
@@ -100,13 +104,7 @@ def delete_connection(connection_id: int, db: Session = Depends(get_db)):
 @router.post("/test", response_model=ConnectionTestResponse)
 def test_new_connection(payload: ConnectionTestRequest):
     """Prueba una conexión sin guardarla en la base de datos."""
-    client = SophosFirewallClient(
-        host=payload.host,
-        port=payload.port,
-        username=payload.username,
-        password=payload.password,
-        verify_ssl=payload.verify_ssl,
-    )
+    client = build_client(payload.api_type, payload.host, payload.port, payload.username, payload.password, payload.verify_ssl)
     result = client.test_connection()
     return ConnectionTestResponse(
         success=result["success"],
@@ -126,13 +124,7 @@ def query_firewall(connection_id: int, payload: FirewallQueryRequest, db: Sessio
     if not obj:
         raise HTTPException(status_code=404, detail="Conexión no encontrada")
 
-    client = SophosFirewallClient(
-        host=obj.host,
-        port=obj.port,
-        username=obj.username,
-        password=_decrypt(obj.password_encrypted),
-        verify_ssl=obj.verify_ssl,
-    )
+    client = client_for_connection(obj)
     result = client.run_query(payload.query_type)
     if not result.get("success"):
         raise HTTPException(status_code=502, detail=result.get("error", "Error al consultar el firewall"))
@@ -146,13 +138,7 @@ def test_saved_connection(connection_id: int, db: Session = Depends(get_db)):
     if not obj:
         raise HTTPException(status_code=404, detail="Conexión no encontrada")
 
-    client = SophosFirewallClient(
-        host=obj.host,
-        port=obj.port,
-        username=obj.username,
-        password=_decrypt(obj.password_encrypted),
-        verify_ssl=obj.verify_ssl,
-    )
+    client = client_for_connection(obj)
     result = client.test_connection()
     return ConnectionTestResponse(
         success=result["success"],
