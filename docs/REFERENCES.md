@@ -83,3 +83,14 @@ No se encontró ruta de hora/NTP en la búsqueda parcial; revisar la spec por `t
 
 - Login y consultas funcionan (`APIVersion 2300.1`), endpoint `https://<fw>:4444/webconsole/APIController` (multipart `reqxml`).
 - En el laboratorio las consultas XML son lentas (`SystemStatus` 1.6 s, `IPHost` 2.4 s, `Zone` 22 s, `FirewallRule` 50 s). Con timeout 10 s y 12 hilos, 38 de 41 colectores de ALFIL fallan por timeout. Plan en `ESTADO_Y_PENDIENTES.md`.
+
+## Validación de la topología en el laboratorio (2026-11-05)
+
+Se crearon y borraron objetos de prueba por REST y se comprobó que el grafo los refleja:
+- **VLAN** (`POST /network/interfaces/network-interfaces`, `type: vlan`, `vlanDetails.vlanId` + `parentInterface`): aparece como interfaz dentro de su zona, con su red conectada.
+- **Rutas estáticas** (`POST /routing/static-unicast-routes/ipv4`: `name`, `destinationAddressIpv4`, `cidr`, `gatewayIpv4`): `red conectada → router → red remota`; dos rutas con el mismo salto comparten el router.
+- **VPN IPsec policy-based** (`POST /ipsec-vpn/site-to-site/connections/policy-based/ipv4`, autenticación `preSharedKey`, `activateConnection: false`, `localGateway: {name: "#PortB"}`): túnel inactivo → sitio remoto → red remota, con el nombre del objeto de host resuelto a CIDR.
+- **Salto inalcanzable:** el firewall acepta una ruta cuyo gateway no está en una red conectada; ALFIL la marca como advertencia crítica.
+- **Reglas de nombres:** los nombres de **conexiones VPN** solo admiten letras, números y guion bajo (`ALFIL_TEST_vpn` sí, `ALFIL-TEST-vpn` no); rutas y objetos de host aceptan guiones.
+- Rendimiento: cada alta o baja de objeto tarda ~20 s.
+- El laboratorio no tiene ruteo dinámico ni endpoints para configurarlo/consultarlo en REST v1.

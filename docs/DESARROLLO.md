@@ -78,6 +78,7 @@ docker compose up --build
 - **`routers/audit.py`** — `POST /audit/{id}` → JSON report, `GET /audit/{id}/export/excel`, `GET /audit/{id}/export/pdf`.
 - **`services/sophos_client.py`** — `SophosFirewallClient`. `collect_audit_data()` llama todos los colectores secuencialmente; continúa si alguno falla. Helper `_extract_list()` normaliza estructuras XML anidadas (pueden ser str/dict/list).
 - **`services/firewall_client.py`** — fábrica: `client_for_connection(obj)` devuelve el cliente XML o REST según `api_type`. **`services/sophos_rest_client.py`** (REST API v23, solo lectura) + **`services/rest_normalizers.py`** (JSON REST → mismo formato que los colectores XML). Config: `SOPHOS_REQUEST_TIMEOUT` (90 s) y `SOPHOS_COLLECT_WORKERS` (4).
+- **`services/topology.py`** — `build_topology(raw_data, connection_info)`: grafo de topología (nodos/aristas/advertencias) desde los datos recolectados; se guarda en `report["topology"]`. Funciona igual con datos XML y REST (los normalizadores REST emiten el formato XML).
 - **`services/audit_service.py`** — `generate_audit_report(connection_info, raw_data)` → report dict con `summary`, `issues[]`, `sections{}`. Score 0–100.
 - **`services/crypto.py`** — `EncryptionManager` singleton. Fixed salt `alfil_salt_value`.
 
@@ -87,6 +88,8 @@ docker compose up --build
 - **`pages/ConnectionsPage.jsx`** — Grid de conexiones: crear, editar, eliminar, probar, navegar a auditoría.
 - **`pages/AuditPage.jsx`** — Ejecuta auditoría, muestra score + hallazgos colapsables por sección + tablas de datos, botones exportación.
 - **`components/ConnectionForm.jsx`** — Form con selector de tipo de API (XML / REST v23) y botón "Probar conexión" antes de guardar.
+- **`pages/TopologyPage.jsx`** + **`topology/`** (`layout.js` filtro/ELK/Mermaid, `TopoNodes.jsx`) — visor interactivo de la topología (React Flow + ELK).
+- **`pages/DocsPage.jsx`** + **`content/guia.md`** — documentación integrada en la web.
 - **`components/IssuesBadge.jsx`** — `SeverityBadge` y `ScoreRing`.
 
 ### Detecciones de auditoría implementadas

@@ -4,6 +4,7 @@ import ConnectionsPage from "./pages/ConnectionsPage";
 import AuditPage from "./pages/AuditPage";
 import FirewallQueryPage from "./pages/FirewallQueryPage";
 import DocsPage from "./pages/DocsPage";
+import TopologyPage from "./pages/TopologyPage";
 
 function NavItem({ to, children }) {
   return (
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="/audit/:id" element={<AuditPage />} />
           <Route path="/query/:id" element={<FirewallQueryPage />} />
           <Route path="/docs" element={<DocsPage />} />
+          <Route path="/topology/:auditId" element={<TopologyPage />} />
         </Routes>
       </main>
 

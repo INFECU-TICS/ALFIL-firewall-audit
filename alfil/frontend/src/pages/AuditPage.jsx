@@ -4,7 +4,7 @@ import {
   ArrowLeft, Play, Download, FileSpreadsheet, FileText, FileArchive,
   Loader2, AlertCircle, CheckCircle, ChevronDown, ChevronRight,
   Users, Server, FileWarning, Trash2, Eye, Clock,
-  Route, Settings
+  Route, Settings, Network
 } from "lucide-react";
 import { api } from "../api";
 import { SeverityBadge, ScoreRing } from "../components/IssuesBadge";
@@ -270,6 +270,9 @@ export default function AuditPage() {
                           <>
                             <button title="Ver reporte" className="p-1 text-gray-400 hover:text-brand-700 transition-colors" onClick={() => loadReport(a.id)}>
                               <Eye className="w-4 h-4" />
+                            </button>
+                            <button title="Topología de red" className="p-1 text-gray-400 hover:text-teal-600 transition-colors" onClick={() => navigate(`/topology/${a.id}`)}>
+                              <Network className="w-4 h-4" />
                             </button>
                             <button title="Excel" className="p-1 text-gray-400 hover:text-green-600 transition-colors" onClick={() => dl(api.exportExcelUrl(a.id))}>
                               <FileSpreadsheet className="w-4 h-4" />

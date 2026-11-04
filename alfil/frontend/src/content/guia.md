@@ -1,6 +1,6 @@
 # Guía de uso de ALFIL
 
-> Última actualización: 2026-11-05. Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
+> Última actualización: 2026-11-05 (topología de red). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
 
 ## 1. Qué es ALFIL
 
@@ -27,7 +27,21 @@ Ejecuta la recolección en segundo plano y genera un reporte con:
 - **Historial** de auditorías por conexión, numeradas por conexión (#1, #2, #3…; el número no cambia si se borra una auditoría).
 - **Exportación** a Excel, PDF y ZIP (incluye los datos crudos).
 
-### 2.3 Consultas directas («Obtener Info»)
+### 2.3 Topología de red
+Desde el historial de auditorías, el botón **Topología de red** (icono de red) de una auditoría completada abre un diagrama interactivo generado con la configuración del firewall:
+
+- **Zonas** (LAN, WAN, DMZ, VPN, WiFi y personalizadas) como contenedores de color.
+- **Interfaces** con su IP: físicas, **VLAN** (se dibujan como interfaces más, con su ID), LAG y bridge. Las IP secundarias (alias) aparecen como redes adicionales.
+- **Redes conectadas** (por ejemplo `10.0.1.0/24`) calculadas a partir de la IP y la máscara de cada interfaz.
+- **Salida a Internet** a través del gateway de la zona WAN.
+- **Rutas estáticas**: cada ruta se dibuja como `red conectada → router de salto → red remota`; los routers compartidos no se duplican y la ruta por defecto va a Internet. Una ruta cuyo salto no está en ninguna red conectada se marca como **salto inalcanzable**.
+- **VPN IPsec**: `Firewall ⇄ túnel ⇄ sitio remoto → redes remotas`; los túneles inactivos se dibujan punteados.
+
+Controles: zoom y desplazamiento, minimapa, panel de detalle al hacer clic en un elemento, filtros (puertos sin configurar, zonas vacías, etiquetas) y exportación a **PNG** o como texto **Mermaid** (para pegar en documentación). El panel lateral lista las **advertencias de topología**: salto inalcanzable, redes remotas que se solapan con redes conectadas e interfaces con IP sin zona.
+
+> El grafo se calcula al ejecutar la auditoría y se guarda con ella. Las auditorías anteriores a esta función no lo incluyen: ejecute una nueva.
+
+### 2.4 Consultas directas («Obtener Info»)
 Consulta puntual al firewall y muestra de los datos en tabla, con la respuesta cruda copiable y exportación a CSV. Tipos: reglas de firewall, interfaces (con VLAN, alias y LAG en modo XML), objetos de host, servicios y usuarios.
 
 ## 3. Cómo conectar un firewall
@@ -82,6 +96,8 @@ Recomendación: en firewalls v23 use **REST**; en versiones anteriores use **XML
 | Regla deshabilitada (posible obsoleta) | Informativo | Sí | Sí |
 | Host sin uso en reglas | Informativo | Sí | Sí |
 | Zona horaria / hostname | Informativo | Sí | Parcial |
+
+Además, la topología genera sus propias **advertencias** (salto inalcanzable, solapamiento de subredes, interfaz sin zona); por ahora no afectan al puntaje.
 
 ALFIL **no afirma nada sobre datos que no pudo obtener**: si un dato no está disponible en el modo elegido, se informa como no verificable.
 
@@ -156,7 +172,9 @@ Recurso: `firewall://summary` (zonas y cantidad de reglas).
 ## 6. Limitaciones actuales de ALFIL
 - En modo REST no están implementados todos los colectores (NTP y zona horaria, certificado de administración, VLAN, alias, LAG, grupos de reglas, VPN, SSL/TLS, filtrado web, rutas, SD-WAN, etc.) ni la consulta de usuarios.
 - En modo XML sobre v23 la entidad de administradores no existe, por lo que el MFA de administradores no se puede evaluar.
-- La interfaz web no tiene gráficos ni topología: solo tablas y tarjetas.
+- La topología refleja la **configuración**, no el estado en vivo: no incluye rutas aprendidas por ruteo dinámico (OSPF/BGP/RIP, que la API REST v1 no expone) ni las rutas SD-WAN, y no muestra el estado real de los enlaces.
+- En modo XML, las redes protegidas de las conexiones VPN se leen con nombres de etiqueta por confirmar en un equipo con VPN; en modo REST sí están verificadas.
+- La interfaz web aún no tiene gráficos de resultados (puntajes, tendencias); solo tablas y tarjetas, además de la topología.
 - No hay autenticación de usuarios en la propia aplicación web: debe desplegarse detrás de un control de acceso (VPN, proxy con autenticación o red restringida).
 - Las auditorías las inicia el usuario; no hay programación automática.
 
@@ -164,12 +182,15 @@ Recurso: `firewall://summary` (zonas y cantidad de reglas).
 
 **Web**
 - Completar los colectores del modo REST y la consulta de usuarios.
-- Gráficos y vistas de topología (visualización).
+- Topología: colorear el grafo con los hallazgos de la auditoría, servidores publicados (DNAT), rutas SD-WAN, matriz zona→zona con las reglas permitidas, mapa multi-sitio (unir firewalls por sus VPN) y comparación entre auditorías.
+- Detecciones basadas en topología (salto inalcanzable, subredes solapadas) integradas en los hallazgos y el puntaje.
+- Gráficos de resultados (tendencia del puntaje).
 - Autenticación de usuarios de la aplicación.
 
 **MCP**
 - Auditoría ampliada: MFA de administradores, acceso de administración desde WAN, hosts y servicios sin uso, NAT, interfaces y notificaciones.
 - Diagnóstico: `explain_rule_match` (qué regla casa con un tráfico) y `trace_object_usage` (dónde se usa un objeto).
+- Herramienta `get_topology` (JSON o Mermaid) y `explain_path(origen, destino)`: por dónde sale el tráfico y qué regla lo permite.
 - Prompts MCP guiados ("revisión de salud", "por qué no pasa este tráfico").
 - **Fase 2 – escritura con confirmación:** propuestas de cambio con vista previa (*dry-run*), copia de seguridad previa, lista de recursos permitidos y confirmación explícita, deshabilitada por defecto.
 

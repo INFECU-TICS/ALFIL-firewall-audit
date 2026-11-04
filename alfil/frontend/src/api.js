@@ -15,6 +15,7 @@ async function request(method, path, body) {
 export const api = {
   // Conexiones
   listConnections:     ()         => request("GET",    "/connections"),
+  getTopology:         (auditId)  => request("GET",    `/audit/reports/${auditId}/topology`),
   getConnection:       (id)       => request("GET",    `/connections/${id}`),
   createConnection:    (data)     => request("POST",   "/connections", data),
   updateConnection:    (id, data) => request("PUT",    `/connections/${id}`, data),

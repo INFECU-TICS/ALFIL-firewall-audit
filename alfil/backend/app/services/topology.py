@@ -125,7 +125,7 @@ def build_topology(raw: dict[str, Any], connection_info: dict[str, Any] | None =
             return None
         net_id = f"net:{net}"
         g.node(net_id, "network", str(net), parent=zone_id, role=g.nodes[zone_id]["data"]["role"])
-        g.edge(if_id, net_id, "connected", via or ip)
+        g.edge(if_id, net_id, "connected", via)  # la IP ya se muestra en la interfaz; solo se etiqueta "alias"
         connected.append((net, net_id, if_name))
         return net
 
