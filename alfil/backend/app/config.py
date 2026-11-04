@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     # Encryption key for storing passwords (should be set via env var in production)
     encryption_key: str = "your-encryption-key-here-change-in-production"
 
+    # API XML de Sophos: algunos equipos tardan decenas de segundos por entidad (p. ej. FirewallRule ~50 s en v23).
+    sophos_request_timeout: int = 90   # segundos por consulta
+    sophos_collect_workers: int = 4    # consultas simultáneas durante la auditoría
+
     class Config:
         env_file = ".env"
 

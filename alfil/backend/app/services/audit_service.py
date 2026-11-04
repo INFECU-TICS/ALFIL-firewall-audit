@@ -38,7 +38,8 @@ def _analyze_admin_users(data: dict) -> list[dict]:
                 name,
             ))
     if not users:
-        issues.append(_issue(INFO, "admin_users", "No se pudieron recuperar los usuarios administradores", "Verificar permisos de la cuenta API."))
+        reason = data.get("admin_users", {}).get("error") or "Verificar permisos de la cuenta."
+        issues.append(_issue(INFO, "admin_users", "No se pudieron verificar los administradores (MFA/OTP no evaluado)", reason))
     return issues
 
 
@@ -75,13 +76,13 @@ def _analyze_admin_settings(data: dict) -> list[dict]:
         return issues
 
     # Hostname vacío
-    hostname = settings.get("Hostname", "")
+    hostname = (settings.get("HostnameSettings") or {}).get("HostName") or settings.get("Hostname", "")
     if not hostname:
         issues.append(_issue(INFO, "system", "Hostname no configurado", "Se recomienda configurar un hostname descriptivo."))
 
     # HTTPS certificate (auto-signed?)
-    cert = settings.get("Certificate", "")
-    if cert.lower() in ("", "default", "appliance"):
+    cert = (settings.get("WebAdminSettings") or {}).get("Certificate") or settings.get("Certificate", "")
+    if str(cert).lower() in ("", "default", "appliance", "appliancecertificate"):
         issues.append(_issue(WARNING, "system", "Certificado de administración auto-firmado o por defecto",
                              "Usar un certificado firmado por una CA de confianza reduce riesgos de MITM en la consola."))
     return issues
@@ -94,12 +95,14 @@ def _analyze_time_settings(data: dict) -> list[dict]:
         issues.append(_issue(INFO, "system", "No se pudo obtener configuración de tiempo", "Verificar permisos de la cuenta API."))
         return issues
 
-    timezone_val = t.get("Timezone", "")
+    timezone_val = t.get("TimeZone") or t.get("Timezone", "")
     issues.append(_issue(INFO, "system", f"Zona horaria configurada: {timezone_val or 'desconocida'}",
                          "Verificar que coincida con la zona horaria de la organización."))
 
-    ntp_servers = t.get("NTPServer", [])
-    if not ntp_servers:
+    # NTP solo se evalúa si el firewall lo informa (v23 no devuelve datos de NTP en la entidad Time)
+    ntp_reported = "NTPServer" in t or "PredefinedNTPServer" in t
+    ntp_servers = t.get("NTPServer") or (t.get("PredefinedNTPServer", "").lower() == "enable")
+    if ntp_reported and not ntp_servers:
         issues.append(_issue(WARNING, "system", "NTP no configurado",
                              "Sin NTP, los logs pueden tener timestamps incorrectos, dificultando la correlación de eventos."))
     return issues
@@ -125,14 +128,17 @@ def _analyze_firewall_rules(data: dict) -> tuple[list[dict], dict]:
             issues.append(_issue(WARNING, "firewall_rules", f"Regla sin logging: '{r['name']}'",
                                  "Sin logging no hay trazabilidad de este tráfico.", r["name"]))
 
-    # Any-Any: fuente y destino son "Any" o listas vacías, y acción es Accept
+    # Any-Any (criterio unificado con alfil-mcp): redes origen y destino "Any" Y servicios "Any", con acción Accept.
+    # Las zonas no cuentan: LAN→WAN con todos los servicios sigue siendo permisiva; una regla acotada a SMTP no lo es.
     for r in enabled_rules:
         src = r.get("source_networks", [])
         dst = r.get("destination_networks", [])
+        svc = r.get("services", [])
         action = r.get("action", "").lower()
         src_is_any = not src or src == ["Any"]
         dst_is_any = not dst or dst == ["Any"]
-        if src_is_any and dst_is_any and action == "accept":
+        svc_is_any = not svc or svc == ["Any"]
+        if src_is_any and dst_is_any and svc_is_any and action == "accept":
             stats["any_any"] += 1
             issues.append(_issue(WARNING, "firewall_rules", f"Regla permisiva Any→Any: '{r['name']}'",
                                  "Permite todo el tráfico sin restricción. Revisar si es intencional.", r["name"]))
@@ -227,7 +233,9 @@ def _analyze_hosts(data: dict, firewall_rules: list[dict], nat_rules: list[dict]
 def _analyze_notifications(data: dict) -> list[dict]:
     issues = []
     notif = data.get("notification_settings", {}).get("data", [])
-    if not notif:
+    # Hay una entrada con banderas SendEmail/SendSnmp: configurado si algún canal está habilitado
+    configured = any(str(n.get(k, "")).lower() == "enable" for n in notif if isinstance(n, dict) for k in ("SendEmail", "SendSnmp"))
+    if not configured:
         issues.append(_issue(WARNING, "notifications", "Sin notificaciones configuradas",
                              "Configurar alertas de eventos críticos (ataques, caídas de interfaz, login fallido)."))
     return issues

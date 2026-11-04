@@ -49,8 +49,8 @@ def _finding(severity: str, code: str, rule: dict[str, Any], title: str, **extra
 
 
 def is_any_to_any(rule: dict[str, Any]) -> bool:
-    return all(is_any(rule.get(k)) for k in (
-        "sourceZones", "destinationZones", "sourceNetworks", "destinationNetworks", "servicesOrGroups"))
+    """Redes origen/destino y servicios "any" (zonas no cuentan; mismo criterio que la web ALFIL)."""
+    return all(is_any(rule.get(k)) for k in ("sourceNetworks", "destinationNetworks", "servicesOrGroups"))
 
 
 def find_permissive(rules: list[dict[str, Any]]) -> list[dict[str, Any]]:

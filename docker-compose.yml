@@ -11,6 +11,8 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost"]}
       - DEBUG=${DEBUG:-false}
+      - SOPHOS_REQUEST_TIMEOUT=${SOPHOS_REQUEST_TIMEOUT:-90}
+      - SOPHOS_COLLECT_WORKERS=${SOPHOS_COLLECT_WORKERS:-4}
     volumes:
       - alfil_data:/data
     expose:

@@ -19,6 +19,12 @@ def test_any_any_detected():
     assert not is_any_to_any(rule("b"))
 
 
+def test_zones_do_not_matter_but_services_do():
+    lan_wan_all = rule("lat-to-wan", servicesOrGroups=ANY)  # LAN→WAN, todo servicio: permisiva
+    smtp_only = rule("mta", sourceZones=ANY, destinationZones=ANY)  # zonas any pero solo HTTPS: acotada
+    assert is_any_to_any(lan_wan_all) and not is_any_to_any(smtp_only)
+
+
 def test_duplicates_ignore_disabled_and_name():
     rules = [rule("a"), rule("b"), rule("c", enabled=False), rule("d", destinationZones={"zones": ["DMZ"]})]
     dups = find_duplicates(rules)

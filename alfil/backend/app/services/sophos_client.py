@@ -15,7 +15,12 @@ logger = logging.getLogger(__name__)
 class SophosFirewallClient:
     """Cliente para la API XML de Sophos Firewall (SFOS/XG)"""
 
-    def __init__(self, host: str, port: int, username: str, password: str, verify_ssl: bool = False):
+    def __init__(self, host: str, port: int, username: str, password: str, verify_ssl: bool = False,
+                 timeout: int | None = None, max_workers: int | None = None):
+        from app.config import get_settings
+        settings = get_settings()
+        self.timeout = timeout or settings.sophos_request_timeout
+        self.max_workers = max_workers or settings.sophos_collect_workers
         self.host = host
         self.port = port
         self.username = username
@@ -32,7 +37,20 @@ class SophosFirewallClient:
             f"</Request>"
         )
 
-    def _make_request(self, xml_payload: str, timeout: int = 10) -> tuple[bool, Any]:
+    @staticmethod
+    def _module_error(data: Any) -> str | None:
+        """HTTP 200 no implica éxito: el firewall responde <Status code="529"> si la entidad no existe en esa versión."""
+        response = data.get("Response", {}) if isinstance(data, dict) else {}
+        for key, node in response.items():
+            if key.startswith("@") or key == "Login" or not isinstance(node, dict):
+                continue
+            status = node.get("Status")
+            if isinstance(status, dict) and status.get("@code") == "529" and set(node) <= {"Status", "@transactionid"}:
+                return f"Entidad '{key}' no disponible en esta versión del firewall (529: {status.get('#text', 'módulo inválido')})"
+        return None
+
+    def _make_request(self, xml_payload: str, timeout: int | None = None) -> tuple[bool, Any]:
+        timeout = timeout or self.timeout
         try:
             # multipart/form-data igual que: curl --form 'reqxml=...'
             response = requests.post(
@@ -48,19 +66,23 @@ class SophosFirewallClient:
 
             try:
                 data = xmltodict.parse(response.text)
-                return True, data
             except Exception as e:
                 return False, {"error": f"XML parse error: {e}"}
+            module_error = self._module_error(data)
+            if module_error:
+                return False, {"error": module_error, "unsupported": True}
+            return True, data
 
         except requests.exceptions.Timeout:
-            return False, {"error": "El equipo no responde (timeout)", "unreachable": True}
+            return False, {"error": f"El equipo no responde (timeout de {timeout} s)", "unreachable": True}
         except requests.exceptions.ConnectionError:
             return False, {"error": "No se puede conectar – verifique host y puerto", "unreachable": True}
         except requests.exceptions.RequestException as e:
             return False, {"error": f"Error de red: {e}", "unreachable": True}
 
-    def _make_request_with_raw(self, xml_payload: str, timeout: int = 30) -> tuple[bool, Any, str]:
+    def _make_request_with_raw(self, xml_payload: str, timeout: int | None = None) -> tuple[bool, Any, str]:
         """Como _make_request pero también devuelve el XML de respuesta sin parsear."""
+        timeout = timeout or self.timeout
         try:
             response = requests.post(
                 self.base_url,
@@ -73,11 +95,14 @@ class SophosFirewallClient:
                 return False, {"error": f"HTTP {response.status_code}", "unreachable": True}, raw
             try:
                 data = xmltodict.parse(raw)
-                return True, data, raw
             except Exception as e:
                 return False, {"error": f"XML parse error: {e}"}, raw
+            module_error = self._module_error(data)
+            if module_error:
+                return False, {"error": module_error, "unsupported": True}, raw
+            return True, data, raw
         except requests.exceptions.Timeout:
-            return False, {"error": "El equipo no responde (timeout)", "unreachable": True}, ""
+            return False, {"error": f"El equipo no responde (timeout de {timeout} s)", "unreachable": True}, ""
         except requests.exceptions.ConnectionError:
             return False, {"error": "No se puede conectar – verifique host y puerto", "unreachable": True}, ""
         except requests.exceptions.RequestException as e:
@@ -382,9 +407,9 @@ class SophosFirewallClient:
         """Normaliza None / dict / list → list."""
         if value is None:
             return []
-        if isinstance(value, list):
-            return value
-        return [value]
+        items = value if isinstance(value, list) else [value]
+        # Entidad vacía: el firewall devuelve <Entidad><Status>No. of records Zero.</Status></Entidad>
+        return [i for i in items if not (isinstance(i, dict) and set(i) <= {"Status", "@transactionid"})]
 
     def _get_entity_list(self, entity_name: str) -> Dict[str, Any]:
         """Colector genérico: obtiene una entidad y devuelve la lista completa sin filtrar campos."""
@@ -453,11 +478,11 @@ class SophosFirewallClient:
 
     def get_admin_settings(self) -> Dict[str, Any]:
         """Hostname, acceso por zona, configuración del panel de administración."""
-        xml = self._build_xml("Admin")
+        xml = self._build_xml("AdminSettings")  # v23: la entidad "Admin" responde 529
         success, result = self._make_request(xml)
         if not success:
             return {"success": False, "error": result.get("error")}
-        return {"success": True, "data": result.get("Response", {}).get("Admin", {})}
+        return {"success": True, "data": result.get("Response", {}).get("AdminSettings", {})}
 
     def get_device_access(self) -> Dict[str, Any]:
         """Reglas de ACL local: servicios habilitados por zona (WebAdmin, SSH, Ping, etc.)."""
@@ -495,7 +520,9 @@ class SophosFirewallClient:
         success, result = self._make_request(xml)
         if not success:
             return {"success": False, "error": result.get("error")}
-        return {"success": True, "data": self._to_list(result.get("Response", {}).get("NotificationList"))}
+        response = result.get("Response", {})
+        node = next((v for k, v in response.items() if k.lower() == "notificationlist"), None)  # v23: "Notificationlist"
+        return {"success": True, "data": self._to_list(node)}
 
     # -------------------------------------------------------------------------
     # Administradores
@@ -1260,7 +1287,7 @@ class SophosFirewallClient:
             "data_transfer_policies": self.get_data_transfer_policies,
         }
         results = {}
-        with ThreadPoolExecutor(max_workers=12) as executor:
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             future_to_key = {executor.submit(fn): key for key, fn in collectors.items()}
             for future in as_completed(future_to_key):
                 key = future_to_key[future]
