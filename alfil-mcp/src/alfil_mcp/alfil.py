@@ -17,6 +17,14 @@ log = logging.getLogger(__name__)
 HEARTBEAT_SECONDS = 30
 
 
+class AlfilError(SophosApiError):
+    """Error devuelto por ALFIL; `status_code` permite distinguir token inválido (401) de caída (5xx)."""
+
+    def __init__(self, message: str, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+
+
 def _describe(resp: httpx.Response) -> str:
     try:
         detail = resp.json().get("detail", "")
@@ -45,9 +53,9 @@ class AlfilHub:
         try:
             resp = await self._http.request(method, path, **kwargs)
         except httpx.HTTPError as exc:
-            raise SophosApiError(f"No se pudo contactar con ALFIL ({type(exc).__name__}): revise ALFIL_URL.") from exc
+            raise AlfilError(f"No se pudo contactar con ALFIL ({type(exc).__name__}): revise ALFIL_URL.") from exc
         if resp.status_code >= 400:
-            raise SophosApiError(_describe(resp))
+            raise AlfilError(_describe(resp), resp.status_code)
         return resp
 
     async def list_connections(self) -> list[dict[str, Any]]:

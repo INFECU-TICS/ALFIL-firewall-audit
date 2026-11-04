@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import requests
 import secrets
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -16,6 +17,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.database import get_db
 from app.models.connection import ConnectionConfig
 from app.models.mcp_access import McpAccess
@@ -59,6 +61,29 @@ def require_mcp_token(authorization: Optional[str] = Header(default=None), db: S
     return row
 
 
+def _touch_used(access: McpAccess, db: Session) -> None:
+    """Registra la última lectura de un agente (como mucho cada 10 s para no escribir en cada petición)."""
+    last = _aware(access.last_used_at)
+    if last is None or (_now() - last).total_seconds() > 10:
+        access.last_used_at = _now()
+        db.commit()
+
+
+def _probe_remote() -> dict:
+    """Estado del servicio MCP remoto (contenedor amcp) mediante su /health."""
+    url = get_settings().mcp_service_url
+    if not url:
+        return {"configured": False}
+    try:
+        resp = requests.get(url.rstrip("/") + "/health", timeout=2)
+        resp.raise_for_status()
+        data = resp.json()
+        return {"configured": True, "reachable": True, "version": data.get("version"), "tools": data.get("tools"),
+                "transport": data.get("transport")}
+    except (requests.RequestException, ValueError) as exc:
+        return {"configured": True, "reachable": False, "error": type(exc).__name__}
+
+
 # ---------------------------------------------------------------------------
 # Gestión desde el dashboard
 # ---------------------------------------------------------------------------
@@ -85,6 +110,8 @@ def mcp_status(db: Session = Depends(get_db)):
         "online_window_seconds": ONLINE_SECONDS,
         "info": row.info or {},
         "enabled_connections": enabled,
+        "remote": _probe_remote(),
+        "last_used_at": _aware(row.last_used_at).isoformat() if row.last_used_at else None,
     }
 
 
@@ -135,8 +162,9 @@ def _enabled_connections(db: Session) -> list[ConnectionConfig]:
 
 
 @router.get("/connections")
-def mcp_list_connections(_: McpAccess = Depends(require_mcp_token), db: Session = Depends(get_db)):
+def mcp_list_connections(access: McpAccess = Depends(require_mcp_token), db: Session = Depends(get_db)):
     """Conexiones habilitadas para el MCP. Nunca incluye credenciales."""
+    _touch_used(access, db)
     return [{"id": c.id, "name": c.name, "host": c.host, "port": c.port, "verify_ssl": c.verify_ssl}
             for c in _enabled_connections(db)]
 
@@ -150,8 +178,9 @@ def _resolve(ref: str, db: Session) -> ConnectionConfig:
 
 
 @router.get("/connections/{ref}/get")
-def mcp_proxy_get(ref: str, request: Request, path: str, _: McpAccess = Depends(require_mcp_token), db: Session = Depends(get_db)):
+def mcp_proxy_get(ref: str, request: Request, path: str, access: McpAccess = Depends(require_mcp_token), db: Session = Depends(get_db)):
     """Ejecuta un GET de solo lectura sobre la REST API del firewall de la conexión indicada (nombre o id)."""
+    _touch_used(access, db)
     conn = _resolve(ref, db)
     if not is_known_get_path(path):
         raise HTTPException(status_code=400, detail=f"Ruta GET no existe en la spec v23: {path}")

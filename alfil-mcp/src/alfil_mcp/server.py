@@ -8,11 +8,17 @@ Dos formas de acceder a un firewall:
 """
 from __future__ import annotations
 
+import argparse
 import asyncio
 import contextlib
+import contextvars
 import functools
+import hashlib
 import json
 import logging
+import os
+import time
+from collections import OrderedDict
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
@@ -21,7 +27,7 @@ from mcp.server.mcpserver.exceptions import ResourceError, ToolError
 from mcp.types import ToolAnnotations
 
 from . import __version__
-from .alfil import AlfilHub, heartbeat_loop
+from .alfil import AlfilError, AlfilHub, heartbeat_loop
 from .analysis import rules as rule_analysis
 from .client import SophosApiError, SophosClient, search_catalog
 from .config import AlfilSettings, ConfigError, Settings
@@ -33,18 +39,46 @@ _EXPECTED = (SophosApiError, ConfigError)
 
 _direct: SophosClient | None = None
 _hub: AlfilHub | None = None
-_proxies: dict[int, Any] = {}
+_proxies: dict[tuple[int, int], Any] = {}
+_http_mode = False                                  # servicio HTTP: el token llega en cada petición
+_request_token: contextvars.ContextVar[str | None] = contextvars.ContextVar("alfil_request_token", default=None)
+_token_hubs: "OrderedDict[str, AlfilHub]" = OrderedDict()
+MAX_TOKEN_HUBS = 32
+TOKEN_CACHE_SECONDS = 30
+_valid_tokens: dict[str, float] = {}               # hash del token -> instante de la última validación correcta
 
 
 def reset_state() -> None:
     """Descarta clientes en caché (pruebas y cambios de configuración)."""
-    global _direct, _hub
+    global _direct, _hub, _http_mode
     _direct = _hub = None
+    _http_mode = False
     _proxies.clear()
+    _token_hubs.clear()
+    _valid_tokens.clear()
+
+
+def _token_key(token: str) -> str:
+    return hashlib.sha256(token.encode("utf8")).hexdigest()
 
 
 def get_hub() -> AlfilHub | None:
     global _hub
+    token = _request_token.get()
+    if token:  # servicio HTTP: un cliente de ALFIL por token (el token es el del agente que llama)
+        key = _token_key(token)
+        if key not in _token_hubs:
+            base = AlfilSettings.base_from_env()
+            if not base:
+                raise ConfigError("El servicio MCP no tiene ALFIL_URL configurado.")
+            _token_hubs[key] = AlfilHub(AlfilSettings(url=base.url, token=token, verify_ssl=base.verify_ssl, timeout=base.timeout))
+            while len(_token_hubs) > MAX_TOKEN_HUBS:
+                _, old = _token_hubs.popitem(last=False)
+                asyncio.get_running_loop().create_task(old.aclose())
+        _token_hubs.move_to_end(key)
+        return _token_hubs[key]
+    if _http_mode:
+        return None
     if _hub is None:
         settings = AlfilSettings.from_env()
         if settings:
@@ -54,6 +88,8 @@ def get_hub() -> AlfilHub | None:
 
 def get_direct() -> SophosClient | None:
     global _direct
+    if _http_mode:  # un servicio compartido no debe exponer una conexión directa con credenciales propias
+        return None
     if _direct is None:
         settings = Settings.try_from_env()
         if settings:
@@ -68,9 +104,10 @@ async def resolve_client(connection: str | None = None) -> tuple[Any, str]:
         if not hub:
             raise ConfigError("Para usar conexiones de ALFIL defina ALFIL_URL y ALFIL_MCP_TOKEN (token del dashboard).")
         found = await hub.find(connection)
-        if found["id"] not in _proxies:
-            _proxies[found["id"]] = hub.client_for(found["id"])
-        return _proxies[found["id"]], found["name"]
+        key = (id(hub), found["id"])
+        if key not in _proxies:
+            _proxies[key] = hub.client_for(found["id"])
+        return _proxies[key], found["name"]
     direct = get_direct()
     if direct and (connection == DIRECT_NAME or not hub):
         return direct, DIRECT_NAME
@@ -95,7 +132,7 @@ async def lifespan(server: MCPServer) -> AsyncIterator[dict[str, Any]]:
     except ConfigError as exc:
         log.warning("%s", exc)
         hub = None
-    if hub:
+    if hub and not _http_mode:
         tools = len(await server.list_tools())
         payload = {"version": __version__, "tools": tools, "read_only": True, "transport": "stdio"}
         task = asyncio.create_task(heartbeat_loop(hub, payload))
@@ -214,8 +251,97 @@ async def summary() -> str:
     return json.dumps({"connection": label, "zones": [z.get("name") for z in zones], "ipv4Rules": len(rules)}, ensure_ascii=False)
 
 
+async def tool_count() -> int:
+    return len(await mcp.list_tools())
+
+
+@mcp.custom_route("/health", ["GET"])
+async def health(request: Any) -> Any:
+    """Sin autenticación: ALFIL lo sondea para mostrar el estado del servicio en el dashboard."""
+    from starlette.responses import JSONResponse
+    return JSONResponse({"status": "ok", "version": __version__, "tools": await tool_count(), "transport": "http", "read_only": True})
+
+
+async def validate_token(token: str) -> None:
+    """Acepta el token si ALFIL lo reconoce (con caché corta). 401 si ALFIL lo rechaza; otros errores -> 503."""
+    key = _token_key(token)
+    if time.monotonic() - _valid_tokens.get(key, -1e9) < TOKEN_CACHE_SECONDS:
+        return
+    base = AlfilSettings.base_from_env()
+    if not base:
+        raise AlfilError("El servicio MCP no tiene ALFIL_URL configurado.", 503)
+    hub = AlfilHub(AlfilSettings(url=base.url, token=token, verify_ssl=base.verify_ssl, timeout=15.0))
+    try:
+        await hub.list_connections()
+    finally:
+        await hub.aclose()
+    _valid_tokens[key] = time.monotonic()
+    if len(_valid_tokens) > 256:  # acotar la caché
+        _valid_tokens.pop(next(iter(_valid_tokens)))
+
+
+class BearerAuthMiddleware:
+    """ASGI: exige `Authorization: Bearer <token de ALFIL>` y lo deja disponible para las herramientas de esa petición."""
+
+    def __init__(self, app: Any, validate: Callable[[str], Awaitable[None]] = validate_token):
+        self.app, self.validate = app, validate
+
+    async def _reply(self, send: Any, status: int, message: str, www: bool = False) -> None:
+        body = json.dumps({"error": "unauthorized" if status == 401 else "unavailable", "message": message}).encode()
+        headers = [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]
+        if www:
+            headers.append((b"www-authenticate", b'Bearer realm="alfil-mcp"'))
+        await send({"type": "http.response.start", "status": status, "headers": headers})
+        await send({"type": "http.response.body", "body": body})
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] != "http" or scope["path"] == "/health":
+            return await self.app(scope, receive, send)
+        auth = dict(scope.get("headers") or []).get(b"authorization", b"").decode("latin-1")
+        scheme, _, token = auth.partition(" ")
+        if scheme.lower() != "bearer" or not token.strip():
+            return await self._reply(send, 401, "Falta el token: envíe la cabecera Authorization: Bearer <token>.", www=True)
+        token = token.strip()
+        try:
+            await self.validate(token)
+        except AlfilError as exc:
+            if exc.status_code == 401:
+                return await self._reply(send, 401, "Token inválido o revocado: genere uno nuevo en el dashboard de ALFIL.", www=True)
+            return await self._reply(send, 503, "El servicio MCP no puede contactar con ALFIL.")
+        marker = _request_token.set(token)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            _request_token.reset(marker)
+
+
+def build_http_app(validate: Callable[[str], Awaitable[None]] = validate_token) -> Any:
+    """App ASGI del MCP remoto (streamable HTTP sin sesión, respuestas JSON) con autenticación por token."""
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    global _http_mode
+    _http_mode = True
+    app = mcp.streamable_http_app(
+        streamable_http_path="/mcp", stateless_http=True, json_response=True,
+        # Detrás del proxy el Host es el del dominio público; el acceso lo protege el token Bearer.
+        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+    )
+    app.add_middleware(BearerAuthMiddleware, validate=validate)
+    return app
+
+
 def main() -> None:
-    mcp.run("stdio")
+    parser = argparse.ArgumentParser(prog="alfil-mcp", description="Servidor MCP de ALFIL (solo lectura)")
+    parser.add_argument("--transport", choices=("stdio", "http"), default=os.environ.get("MCP_TRANSPORT", "stdio"))
+    parser.add_argument("--host", default=os.environ.get("MCP_HOST", "0.0.0.0"))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("MCP_PORT", "8765")))
+    args = parser.parse_args()
+    if args.transport == "http":
+        import uvicorn
+        logging.basicConfig(level=logging.INFO)
+        uvicorn.run(build_http_app(), host=args.host, port=args.port, log_level="info")
+    else:
+        mcp.run("stdio")
 
 
 if __name__ == "__main__":

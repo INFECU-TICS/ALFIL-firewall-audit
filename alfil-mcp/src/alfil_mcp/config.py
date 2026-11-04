@@ -86,6 +86,16 @@ class AlfilSettings:
         return f"{self.url.rstrip('/')}/api/v1/mcp"
 
     @classmethod
+    def base_from_env(cls) -> "AlfilSettings | None":
+        """URL de ALFIL sin token (modo HTTP: cada petición trae su propio token)."""
+        file_values = _read_env_file(Path(os.environ["SFOS_ENV_FILE"])) if os.environ.get("SFOS_ENV_FILE") else {}
+        url = os.environ.get("ALFIL_URL") or file_values.get("ALFIL_URL")
+        if not url:
+            return None
+        verify = (os.environ.get("ALFIL_VERIFY_SSL") or file_values.get("ALFIL_VERIFY_SSL") or "true").lower() not in ("0", "false", "no")
+        return cls(url=url, token="", verify_ssl=verify)
+
+    @classmethod
     def from_env(cls) -> "AlfilSettings | None":
         file_values = _read_env_file(Path(os.environ["SFOS_ENV_FILE"])) if os.environ.get("SFOS_ENV_FILE") else {}
 

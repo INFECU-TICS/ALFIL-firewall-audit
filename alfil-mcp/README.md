@@ -21,6 +21,10 @@ Resource: `firewall://summary`. Próximo: hardening de admin (MFA, acceso WAN), 
 
 Todas las herramientas que consultan un firewall aceptan `connection` (nombre o id de ALFIL, o `directa`). Con ALFIL configurado, el MCP envía un latido cada 30 s para que el dashboard muestre su estado. Ver la guía de usuario (sección 5) para la puesta en marcha.
 
+## Servicio remoto (HTTP)
+
+Con `python -m alfil_mcp.server --transport http` (o las variables `MCP_TRANSPORT`, `MCP_HOST`, `MCP_PORT`) el MCP escucha en `/mcp` (streamable HTTP sin sesión, respuestas JSON) y `/health`. Cada petición debe traer `Authorization: Bearer <token de ALFIL>`; el servicio lo valida contra ALFIL (`ALFIL_URL`, URL interna del backend) y lo reutiliza para leer los firewalls habilitados a través del proxy de solo lectura. No guarda credenciales ni acepta conexión directa. El `Dockerfile` y el servicio `amcp` del `docker-compose.yml` lo publican en `https://DOMINIO/mcp`. La guía de usuario (sección 5.2) explica cómo conectar cada agente.
+
 ## Instalación
 
 ```bash

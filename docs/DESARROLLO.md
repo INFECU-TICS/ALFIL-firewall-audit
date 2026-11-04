@@ -75,6 +75,7 @@ docker compose up --build
 - **`models/connection.py`** — `ConnectionConfig`: host, port, username, `password_encrypted`, verify_ssl, `api_type` (`xml`|`rest`), timestamps. En modo `rest` `password_encrypted` guarda la API key y `username` es el placeholder `api-key`. `database.ensure_schema()` migra BD antiguas (añade `api_type`).
 - **`schemas/connection.py`** — `ConnectionConfigCreate/Update/Response`, `ConnectionTestRequest/Response`. La response nunca incluye password.
 - **`routers/connections.py`** — CRUD completo + `POST /connections/test` (ad-hoc) + `POST /connections/{id}/test` (guardada).
+- **MCP remoto:** servicio `amcp` (compose) construido desde `alfil-mcp/Dockerfile`; `alfil_mcp.server --transport http` (`build_http_app`, `BearerAuthMiddleware`). Traefik lo publica en `/mcp` y el nginx del frontend en local. Prueba de los fragmentos por agente: `node alfil/frontend/scripts/check-snippets.mjs`.
 - **`routers/mcp.py`** — integración con el MCP: estado y token (dashboard), latido, conexiones habilitadas y proxy GET de solo lectura (Bearer). Modelo `models/mcp_access.py`; `services/get_catalog.py` valida rutas contra `app/data/get_catalog.json`.
 - **`routers/audit.py`** — `POST /audit/{id}` → JSON report, `GET /audit/{id}/export/excel`, `GET /audit/{id}/export/pdf`.
 - **`services/sophos_client.py`** — `SophosFirewallClient`. `collect_audit_data()` llama todos los colectores secuencialmente; continúa si alguno falla. Helper `_extract_list()` normaliza estructuras XML anidadas (pueden ser str/dict/list).
@@ -89,7 +90,7 @@ docker compose up --build
 - **`pages/ConnectionsPage.jsx`** — Grid de conexiones: crear, editar, eliminar, probar, navegar a auditoría.
 - **`pages/AuditPage.jsx`** — Ejecuta auditoría, muestra score + hallazgos colapsables por sección + tablas de datos, botones exportación.
 - **`components/ConnectionForm.jsx`** — Form con selector de tipo de API (XML / REST v23) y botón "Probar conexión" antes de guardar.
-- **`components/McpStatusCard.jsx`** — panel de estado y token del MCP en el dashboard.
+- **`components/McpStatusCard.jsx`** — panel de estado del MCP en el dashboard; **`AgentConnectModal.jsx`** + **`agentSnippets.js`** — asistente para conectar agentes (configuración por agente; formatos verificados el 2026-11-05).
 - **`pages/TopologyPage.jsx`** + **`topology/`** (`layout.js` filtro/ELK/Mermaid, `TopoNodes.jsx`) — visor interactivo de la topología (React Flow + ELK).
 - **`pages/DocsPage.jsx`** + **`content/guia.md`** — documentación integrada en la web.
 - **`components/IssuesBadge.jsx`** — `SeverityBadge` y `ScoreRing`.

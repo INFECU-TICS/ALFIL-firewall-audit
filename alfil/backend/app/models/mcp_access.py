@@ -12,5 +12,6 @@ class McpAccess(Base):
     token_hash = Column(String(64), nullable=True)      # SHA-256 del token; el token solo se muestra al generarlo
     token_prefix = Column(String(16), nullable=True)    # para reconocerlo en pantalla
     token_created_at = Column(DateTime(timezone=True), nullable=True)
-    last_seen_at = Column(DateTime(timezone=True), nullable=True)
+    last_seen_at = Column(DateTime(timezone=True), nullable=True)   # último latido del MCP local (stdio)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)   # última lectura de un agente a través del proxy
     info = Column(JSON, nullable=True)                  # versión, herramientas, solo lectura, transporte

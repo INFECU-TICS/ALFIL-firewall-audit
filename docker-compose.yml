@@ -13,6 +13,7 @@ services:
       - DEBUG=${DEBUG:-false}
       - SOPHOS_REQUEST_TIMEOUT=${SOPHOS_REQUEST_TIMEOUT:-90}
       - SOPHOS_COLLECT_WORKERS=${SOPHOS_COLLECT_WORKERS:-4}
+      - MCP_SERVICE_URL=http://amcp:8765
     volumes:
       - alfil_data:/data
     expose:
@@ -53,6 +54,36 @@ services:
       # El backend tiene prioridad en /api (mayor priority number = mayor prioridad en Traefik)
       - "traefik.http.routers.alfil-frontend.priority=1"
       - "traefik.http.routers.alfil-backend.priority=10"
+
+  # Servidor MCP remoto (HTTP) en https://DOMINIO/mcp. No guarda credenciales: valida el token de cada
+  # agente contra ALFIL y lee los firewalls a través del proxy de solo lectura del backend.
+  amcp:
+    build:
+      context: ./alfil-mcp
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - ALFIL_URL=http://abackend:8000
+    depends_on:
+      abackend:
+        condition: service_healthy
+    expose:
+      - "8765"
+    networks:
+      - dokploy-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alfil-mcp.rule=Host(`${DOMAIN}`) && PathPrefix(`/mcp`)"
+      - "traefik.http.routers.alfil-mcp.entrypoints=websecure"
+      - "traefik.http.routers.alfil-mcp.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alfil-mcp.loadbalancer.server.port=8765"
+      - "traefik.http.routers.alfil-mcp.priority=20"
 
 volumes:
   alfil_data:

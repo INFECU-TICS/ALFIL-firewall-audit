@@ -94,3 +94,13 @@ Se crearon y borraron objetos de prueba por REST y se comprobó que el grafo los
 - **Reglas de nombres:** los nombres de **conexiones VPN** solo admiten letras, números y guion bajo (`ALFIL_TEST_vpn` sí, `ALFIL-TEST-vpn` no); rutas y objetos de host aceptan guiones.
 - Rendimiento: cada alta o baja de objeto tarda ~20 s.
 - El laboratorio no tiene ruteo dinámico ni endpoints para configurarlo/consultarlo en REST v1.
+
+## Registro de un servidor MCP remoto por agente (verificado 2026-11-05)
+
+Fuentes: documentación de cada herramienta (Claude Code, opencode, Codex, Cursor, VS Code); Gemini CLI no se pudo confirmar.
+- **Claude Code:** `claude mcp add --transport http <nombre> <url> --header "Authorization: Bearer <token>"` (la opción `--header` va después del nombre y la URL). Los servidores de alcance *project* (`.mcp.json`) piden aprobación; *local*/*user* no. Probado: `claude mcp list` → Connected (v2.1.318).
+- **opencode:** `opencode.json` → `mcp.<nombre> = {type: "remote", url, enabled, oauth: false, headers: {Authorization: "Bearer {env:VAR}"}}`. Descubre el archivo desde la raíz del repositorio (o `OPENCODE_CONFIG`). Probado: `opencode mcp list` → connected (v2.2.4).
+- **Codex:** `codex mcp add <nombre> --url <url> --bearer-token-env-var VAR` o `[mcp_servers.<nombre>]` con `url` y `bearer_token_env_var` en `~/.codex/config.toml`. Sin probar.
+- **Cursor:** `~/.cursor/mcp.json` → `mcpServers.<nombre> = {url, headers}` (hay reportes de que algunas versiones no envían las cabeceras). Sin probar.
+- **VS Code:** `.vscode/mcp.json` → `servers.<nombre> = {type: "http", url, headers}` (puede estar marcado como obsoleto en favor de la configuración global). Sin probar.
+- **Gemini CLI:** `mcpServers.<nombre> = {httpUrl, headers}` en `~/.gemini/settings.json` — **no confirmado**.

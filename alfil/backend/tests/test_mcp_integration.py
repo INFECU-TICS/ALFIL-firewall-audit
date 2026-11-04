@@ -148,3 +148,34 @@ def test_proxy_traduce_errores_del_firewall(client, monkeypatch):
     cid = make_conn(client).json()["id"]
     r = client.get(f"/api/v1/mcp/connections/{cid}/get", params={"path": "/network/zones"}, headers=auth(new_token(client)))
     assert r.status_code == 502 and "rechazada" in r.json()["detail"]
+
+
+def test_estado_del_servicio_remoto_y_ultimo_uso(client, monkeypatch):
+    import requests
+    from app.config import get_settings
+    from app.routers import mcp as mcp_router
+
+    assert client.get("/api/v1/mcp/status").json()["remote"] == {"configured": False}
+    monkeypatch.setattr(mcp_router, "get_settings", lambda: get_settings().model_copy(update={"mcp_service_url": "http://amcp:8765"}))
+
+    class Resp:
+        def raise_for_status(self): pass
+        def json(self): return {"status": "ok", "version": "0.2.0", "tools": 6, "transport": "http"}
+
+    monkeypatch.setattr(requests, "get", lambda url, timeout: Resp())
+    remote = client.get("/api/v1/mcp/status").json()["remote"]
+    assert remote == {"configured": True, "reachable": True, "version": "0.2.0", "tools": 6, "transport": "http"}
+
+    def down(url, timeout):
+        raise requests.ConnectionError("sin red")
+
+    monkeypatch.setattr(requests, "get", down)
+    assert client.get("/api/v1/mcp/status").json()["remote"] == {"configured": True, "reachable": False, "error": "ConnectionError"}
+
+    # último uso: lo registra la lectura de un agente, no el latido
+    token = new_token(client)
+    assert client.get("/api/v1/mcp/status").json()["last_used_at"] is None
+    client.post("/api/v1/mcp/heartbeat", json={"version": "x", "tools": 1}, headers=auth(token))
+    assert client.get("/api/v1/mcp/status").json()["last_used_at"] is None
+    client.get("/api/v1/mcp/connections", headers=auth(token))
+    assert client.get("/api/v1/mcp/status").json()["last_used_at"] is not None

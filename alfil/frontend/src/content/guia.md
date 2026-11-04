@@ -1,6 +1,6 @@
 # Guía de uso de ALFIL
 
-> Última actualización: 2026-11-05 (conexiones y estado del MCP). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
+> Última actualización: 2026-11-05 (MCP remoto y conexión de agentes). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
 
 ## 1. Qué es ALFIL
 
@@ -11,14 +11,14 @@ El proyecto tiene dos componentes:
 | Componente | Para qué sirve | Interfaz |
 |---|---|---|
 | **ALFIL web** | Auditorías con historial, consultas y reportes exportables | Navegador |
-| **ALFIL-MCP** | Servidor MCP de **solo lectura** para consultar y auditar el firewall desde un asistente de IA | Cliente MCP (stdio) |
+| **ALFIL-MCP** | Servidor MCP de **solo lectura** para consultar y auditar el firewall desde un asistente de IA | Servicio remoto (`/mcp`) o local (stdio) |
 
 ## 2. Funciones de la aplicación web
 
 ### 2.1 Conexiones
 Cada conexión guarda el firewall a auditar: nombre, host, puerto, tipo de API y credenciales (cifradas). Desde la página principal se puede **crear, editar, eliminar y probar** conexiones, y abrir la auditoría o las consultas de cada una.
 
-Las conexiones **REST** tienen además el interruptor **Disponible en MCP** (apagado por defecto), que permite a un asistente de IA leerlas a través del servidor MCP. Las conexiones XML no pueden habilitarse. En la parte superior de la página, el panel **Servidor MCP** muestra su estado (ver la sección 5.7).
+Las conexiones **REST** tienen además el interruptor **Disponible en MCP** (apagado por defecto), que permite a un asistente de IA leerlas a través del servidor MCP. Las conexiones XML no pueden habilitarse. En la parte superior de la página, el panel **Servidor MCP** muestra su estado (ver la sección 5.8).
 
 ### 2.2 Auditoría
 Ejecuta la recolección en segundo plano y genera un reporte con:
@@ -112,7 +112,25 @@ Es un servidor [MCP](https://modelcontextprotocol.io) que expone el firewall v23
 - Solo acepta las **266 rutas GET** de la especificación OpenAPI oficial del firewall v23. Las operaciones de acción (borrado masivo, mover reglas, probar conexiones) no están disponibles.
 - No modifica la configuración del equipo bajo ninguna circunstancia.
 
-### 5.2 Instalación
+### 5.2 Conectar un agente de IA (MCP remoto, recomendado)
+ALFIL publica el MCP como un servicio remoto en `https://<su-dominio>/mcp`. **El agente no instala nada**: solo registra la URL y un token.
+
+1. Cree una conexión de tipo **API REST v23** y active **Disponible en MCP** (en la tarjeta o al editarla).
+2. En el panel **Servidor MCP** del dashboard pulse **Conectar un agente** y luego **Generar token**. Se muestra una sola vez: en la base solo queda su hash.
+3. Elija su agente en el asistente y copie el comando o la configuración, ya con la URL y el token. Si el agente no está en la lista, copie el **prompt de instalación** y péguelo en su chat: *«Instala este servidor MCP remoto…»*; el agente lo traduce a su propio formato.
+4. Verifique que el agente lista las herramientas de `alfil` y ejecute `list_connections`.
+
+| Agente | Estado de la configuración |
+|---|---|
+| Claude Code | Probado contra ALFIL (`claude mcp list` → Connected) |
+| opencode | Probado contra ALFIL (`opencode mcp list` → connected) |
+| Codex | Según su documentación; sin probar |
+| Cursor, VS Code | Según su documentación; sin probar |
+| Gemini CLI | Formato pendiente de confirmar; sin probar |
+
+Los formatos de cada herramienta cambian con las versiones: si el fragmento deja de funcionar, use el prompt de instalación o consulte la documentación del agente. En local (`http://localhost:8081/mcp`) basta HTTP; en cualquier otro entorno use **HTTPS**.
+
+### 5.3 Uso local por stdio: instalación
 Requiere Python 3.10 o superior.
 
 ```bash
@@ -122,12 +140,12 @@ python3 -m venv .venv
 .venv/bin/python -m pytest
 ```
 
-### 5.3 Formas de acceder a un firewall
+### 5.4 Formas de acceder a un firewall
 El MCP puede trabajar de dos maneras (se pueden combinar):
 
 | Modo | Cómo se configura | Cuándo usarlo |
 |---|---|---|
-| **Conexiones de ALFIL** (recomendado) | `ALFIL_URL` + `ALFIL_MCP_TOKEN`; las conexiones se habilitan en el dashboard | Varios firewalls, credenciales centralizadas y estado visible en el dashboard |
+| **Conexiones de ALFIL** (recomendado) | `ALFIL_URL` + `ALFIL_MCP_TOKEN` en el MCP local, o el servicio remoto de ALFIL (sección 5.2); las conexiones se habilitan en el dashboard | Varios firewalls, credenciales centralizadas y estado visible en el dashboard |
 | **Directo** | `SFOS_HOST` + `SFOS_TOKEN` | Un solo firewall, sin ALFIL |
 
 En el modo ALFIL **el MCP nunca recibe la API key**: pide al backend de ALFIL que lea una ruta GET de la conexión elegida y el backend la ejecuta con la clave que custodia. Solo se aceptan las rutas GET de la especificación oficial.
@@ -139,7 +157,7 @@ En el modo ALFIL **el MCP nunca recibe la API key**: pide al backend de ALFIL qu
 3. Configure el cliente MCP con `ALFIL_URL` (la dirección de ALFIL, alcanzable desde donde corre el MCP) y `ALFIL_MCP_TOKEN`. El panel muestra un JSON listo para copiar.
 4. En el asistente use `list_connections` para ver los firewalls disponibles y el parámetro `connection` para elegir uno. Si solo hay una conexión habilitada, se usa por defecto.
 
-### 5.4 Configuración (variables de entorno)
+### 5.5 Configuración (variables de entorno)
 
 | Variable | Descripción |
 |---|---|
@@ -154,7 +172,7 @@ En el modo ALFIL **el MCP nunca recibe la API key**: pide al backend de ALFIL qu
 
 La clave nunca se imprime ni se registra.
 
-### 5.5 Conexión desde un cliente MCP
+### 5.6 Conexión desde un cliente MCP local (stdio)
 Cualquier cliente MCP compatible con transporte **stdio** puede usarlo. La definición típica es:
 
 ```json
@@ -173,7 +191,7 @@ Cualquier cliente MCP compatible con transporte **stdio** puede usarlo. La defin
 }
 ```
 
-### 5.6 Herramientas disponibles
+### 5.7 Herramientas disponibles
 
 | Herramienta | Qué hace |
 |---|---|
@@ -188,8 +206,8 @@ Todas las herramientas que consultan un firewall aceptan el parámetro opcional 
 
 Recurso: `firewall://summary` (zonas y cantidad de reglas de la conexión por defecto).
 
-### 5.7 Estado del MCP en el dashboard
-Mientras el MCP está en ejecución envía un latido a ALFIL cada 30 segundos. El panel **Servidor MCP** muestra:
+### 5.8 Estado del MCP en el dashboard
+El panel **Servidor MCP** muestra el estado del **servicio remoto** (ALFIL lo sondea cada 15 s) y, si usa el MCP local por stdio, el de ese proceso: mientras está en ejecución envía un latido a ALFIL cada 30 segundos. Estados:
 
 | Estado | Significado |
 |---|---|
@@ -198,12 +216,21 @@ Mientras el MCP está en ejecución envía un latido a ALFIL cada 30 segundos. E
 | **Sin actividad** | Hay token, pero el MCP aún no se ha conectado |
 | **No configurado** | No hay token generado |
 
-Además indica la versión, el número de herramientas, el modo (solo lectura), las conexiones habilitadas y el prefijo del token. Como el MCP se ejecuta por stdio, normalmente lo lanza el cliente MCP: el estado es *en línea* solo mientras el cliente lo mantiene abierto.
+Además indica la versión, el número de herramientas, el modo (solo lectura), las conexiones habilitadas, el prefijo del token y cuándo fue la **última lectura de un agente**. El servicio remoto está en línea aunque no haya agentes conectados; el MCP local por stdio solo mientras el cliente lo mantiene abierto.
 
-### 5.8 Limitaciones del MCP
+### 5.9 Seguridad del MCP remoto
+- **El token da lectura** de las configuraciones de los firewalls habilitados. Trátelo como una credencial: no lo pegue en repositorios, tickets ni capturas, y revóquelo si se expone. Hay un único token compartido; generar otro invalida el anterior.
+- **Use HTTPS** fuera de local: el token viaja en cada petición. El despliegue con Traefik ya publica `/mcp` con TLS.
+- Habilite en MCP **solo las conexiones necesarias** y, si es posible, limite el acceso a `/mcp` por VPN o por IP.
+- El servicio **no guarda credenciales**: valida el token contra ALFIL en cada petición y las consultas pasan por el proxy de solo lectura del backend, que solo ejecuta las rutas GET de la especificación.
+- Los agentes pueden enviar lo que leen a su proveedor de modelo: considere qué datos del firewall autoriza a analizar.
+
+### 5.10 Limitaciones del MCP
 - Solo firewalls con la **API REST de v23**; las conexiones XML de ALFIL no se pueden usar desde el MCP.
 - En modo ALFIL, las consultas pasan por el backend de ALFIL (que debe estar accesible); en equipos lentos una consulta puede tardar decenas de segundos.
-- El estado en el dashboard depende de los latidos: si ALFIL no es alcanzable desde el MCP, aparecerá *fuera de línea* aunque el MCP funcione.
+- Para el MCP local por stdio, el estado depende de los latidos: si ALFIL no es alcanzable desde el MCP, aparecerá *fuera de línea* aunque el MCP funcione.
+- Un único token compartido para todos los agentes (sin tokens por agente ni caducidad).
+- Los formatos de configuración de Codex, Cursor, VS Code y Gemini CLI no se han probado contra ALFIL.
 - La auditoría del MCP cubre hoy las **reglas de firewall**; aún no incluye MFA de administradores, acceso de administración desde WAN, objetos sin uso ni diagnóstico de tráfico.
 - Las respuestas grandes se paginan (hasta 100 elementos por página).
 - La API es *Early Access*: las rutas pueden cambiar antes de la versión general.
@@ -230,6 +257,7 @@ Además indica la versión, el número de herramientas, el modo (solo lectura), 
 - Auditoría ampliada: MFA de administradores, acceso de administración desde WAN, hosts y servicios sin uso, NAT, interfaces y notificaciones.
 - Diagnóstico: `explain_rule_match` (qué regla casa con un tráfico) y `trace_object_usage` (dónde se usa un objeto).
 - Herramienta `get_topology` (JSON o Mermaid) y `explain_path(origen, destino)`: por dónde sale el tráfico y qué regla lo permite.
+- Tokens por agente (con nombre, revocables y con último uso) y caducidad.
 - Prompts MCP guiados ("revisión de salud", "por qué no pasa este tráfico").
 - **Fase 2 – escritura con confirmación:** propuestas de cambio con vista previa (*dry-run*), copia de seguridad previa, lista de recursos permitidos y confirmación explícita, deshabilitada por defecto.
 

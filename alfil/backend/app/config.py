@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     sophos_request_timeout: int = 90   # segundos por consulta
     sophos_collect_workers: int = 4    # consultas simultáneas durante la auditoría
 
+    # Servicio MCP remoto (opcional): el dashboard sondea su /health para mostrar el estado
+    mcp_service_url: str = ""
+
     class Config:
         env_file = ".env"
 
