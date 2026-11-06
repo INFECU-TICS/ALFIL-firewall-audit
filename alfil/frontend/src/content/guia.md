@@ -116,7 +116,7 @@ Es un servidor [MCP](https://modelcontextprotocol.io) que expone el firewall v23
 ALFIL publica el MCP como un servicio remoto en `https://<su-dominio>/mcp`. **El agente no instala nada**: solo registra la URL y un token.
 
 1. Cree una conexión de tipo **API REST v23** y active **Disponible en MCP** (en la tarjeta o al editarla).
-2. En el panel **Servidor MCP** del dashboard pulse **Conectar un agente** y luego **Generar token**. Se muestra una sola vez: en la base solo queda su hash.
+2. En el panel **Servidor MCP** del dashboard pulse **Conectar un agente**, escriba un nombre para el agente (p. ej. `claude-ana`), elija la caducidad (7 días por defecto) y pulse **Crear token**. Se muestra una sola vez: en la base solo queda su hash. Cree un token por agente.
 3. Elija su agente en el asistente y copie el comando o la configuración, ya con la URL y el token. Si el agente no está en la lista, copie el **prompt de instalación** y péguelo en su chat: *«Instala este servidor MCP remoto…»*; el agente lo traduce a su propio formato.
 4. Verifique que el agente lista las herramientas de `alfil` y ejecute `list_connections`.
 
@@ -153,7 +153,7 @@ En el modo ALFIL **el MCP nunca recibe la API key**: pide al backend de ALFIL qu
 **Puesta en marcha en modo ALFIL**
 
 1. Cree una conexión de tipo **API REST v23** y actívele **Disponible en MCP** (en la tarjeta o al editarla).
-2. En el panel **Servidor MCP** del dashboard pulse **Generar token** y cópielo: solo se muestra una vez y en la base solo se guarda su hash. Generar otro invalida el anterior; **Revocar** lo anula.
+2. En el panel **Servidor MCP** del dashboard pulse **Conectar un agente**, cree un token con nombre y caducidad y cópielo: solo se muestra una vez y en la base solo se guarda su hash. Cada token se revoca por separado con el icono de papelera de la lista.
 3. Configure el cliente MCP con `ALFIL_URL` (la dirección de ALFIL, alcanzable desde donde corre el MCP) y `ALFIL_MCP_TOKEN`. El panel muestra un JSON listo para copiar.
 4. En el asistente use `list_connections` para ver los firewalls disponibles y el parámetro `connection` para elegir uno. Si solo hay una conexión habilitada, se usa por defecto.
 
@@ -214,12 +214,12 @@ El panel **Servidor MCP** muestra el estado del **servicio remoto** (ALFIL lo so
 | **En línea** | Hubo un latido en los últimos 90 segundos |
 | **Fuera de línea** | El MCP dejó de enviar latidos |
 | **Sin actividad** | Hay token, pero el MCP aún no se ha conectado |
-| **No configurado** | No hay token generado |
+| **Sin token** | No hay ningún token activo (o todos caducaron) |
 
-Además indica la versión, el número de herramientas, el modo (solo lectura), las conexiones habilitadas, el prefijo del token y cuándo fue la **última lectura de un agente**. El servicio remoto está en línea aunque no haya agentes conectados; el MCP local por stdio solo mientras el cliente lo mantiene abierto.
+Además indica la versión, el número de herramientas, el modo (solo lectura), las conexiones habilitadas, los tokens activos (lista con nombre, prefijo, caducidad y último uso de cada uno) y cuándo fue la **última lectura de un agente**. El servicio remoto está en línea aunque no haya agentes conectados; el MCP local por stdio solo mientras el cliente lo mantiene abierto.
 
 ### 5.9 Seguridad del MCP remoto
-- **El token da lectura** de las configuraciones de los firewalls habilitados. Trátelo como una credencial: no lo pegue en repositorios, tickets ni capturas, y revóquelo si se expone. Hay un único token compartido; generar otro invalida el anterior.
+- **El token da lectura** de las configuraciones de los firewalls habilitados. Trátelo como una credencial: no lo pegue en repositorios, tickets ni capturas, y revóquelo si se expone. Cada agente tiene su propio token, con caducidad (7 días por defecto, 1 día a 1 año o sin caducidad) y revocación individual; un token caducado se rechaza con «Token MCP caducado».
 - **Use HTTPS** fuera de local: el token viaja en cada petición. El despliegue con Traefik ya publica `/mcp` con TLS.
 - Habilite en MCP **solo las conexiones necesarias** y, si es posible, limite el acceso a `/mcp` por VPN o por IP.
 - El servicio **no guarda credenciales**: valida el token contra ALFIL en cada petición y las consultas pasan por el proxy de solo lectura del backend, que solo ejecuta las rutas GET de la especificación.
@@ -229,7 +229,7 @@ Además indica la versión, el número de herramientas, el modo (solo lectura), 
 - Solo firewalls con la **API REST de v23**; las conexiones XML de ALFIL no se pueden usar desde el MCP.
 - En modo ALFIL, las consultas pasan por el backend de ALFIL (que debe estar accesible); en equipos lentos una consulta puede tardar decenas de segundos.
 - Para el MCP local por stdio, el estado depende de los latidos: si ALFIL no es alcanzable desde el MCP, aparecerá *fuera de línea* aunque el MCP funcione.
-- Un único token compartido para todos los agentes (sin tokens por agente ni caducidad).
+- Todos los tokens ven las mismas conexiones habilitadas (no se limita un token a ciertos firewalls).
 - Los formatos de configuración de Codex, Cursor, VS Code y Gemini CLI no se han probado contra ALFIL.
 - La auditoría del MCP cubre hoy las **reglas de firewall**; aún no incluye MFA de administradores, acceso de administración desde WAN, objetos sin uso ni diagnóstico de tráfico.
 - Las respuestas grandes se paginan (hasta 100 elementos por página).
@@ -257,7 +257,6 @@ Además indica la versión, el número de herramientas, el modo (solo lectura), 
 - Auditoría ampliada: MFA de administradores, acceso de administración desde WAN, hosts y servicios sin uso, NAT, interfaces y notificaciones.
 - Diagnóstico: `explain_rule_match` (qué regla casa con un tráfico) y `trace_object_usage` (dónde se usa un objeto).
 - Herramienta `get_topology` (JSON o Mermaid) y `explain_path(origen, destino)`: por dónde sale el tráfico y qué regla lo permite.
-- Tokens por agente (con nombre, revocables y con último uso) y caducidad.
 - Prompts MCP guiados ("revisión de salud", "por qué no pasa este tráfico").
 - **Fase 2 – escritura con confirmación:** propuestas de cambio con vista previa (*dry-run*), copia de seguridad previa, lista de recursos permitidos y confirmación explícita, deshabilitada por defecto.
 

@@ -12,7 +12,14 @@ function CopyButton({ text }) {
   );
 }
 
-export default function AgentConnectModal({ token, tokenConfigured, onGenerate, busy, onClose }) {
+const EXPIRY = [
+  { value: "1", label: "1 día" }, { value: "7", label: "7 días" }, { value: "30", label: "30 días" },
+  { value: "90", label: "90 días" }, { value: "365", label: "1 año" }, { value: "never", label: "Sin caducidad" },
+];
+
+export default function AgentConnectModal({ token, tokenName, tokenConfigured, defaultDays = 7, onCreate, busy, error, onClose }) {
+  const [name, setName] = useState("");
+  const [days, setDays] = useState(String(defaultDays));
   const [url, setUrl] = useState(`${window.location.origin}/mcp`);
   const [tab, setTab] = useState("prompt");
   const agents = buildAgents({ url, token });
@@ -38,15 +45,26 @@ export default function AgentConnectModal({ token, tokenConfigured, onGenerate, 
             {token ? (
               <div className="rounded-lg bg-green-50 text-green-900 text-xs p-2.5 flex items-center gap-2">
                 <CircleCheck className="w-4 h-4 flex-shrink-0" />
-                Token nuevo incluido en los fragmentos. Cópielo ahora: no se vuelve a mostrar.
+                Token «{tokenName}» incluido en los fragmentos. Cópielo ahora: no se vuelve a mostrar.
               </div>
             ) : (
-              <button className="btn-secondary text-xs py-2 px-3 w-full justify-center" onClick={onGenerate} disabled={busy}>
-                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
-                {tokenConfigured ? "Generar token nuevo (invalida el actual)" : "Generar token"}
-              </button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input className="input text-xs flex-1" placeholder="Nombre del agente (p. ej. claude-ana)" maxLength={80}
+                    value={name} onChange={(e) => setName(e.target.value)} />
+                  <select className="input text-xs w-36" value={days} onChange={(e) => setDays(e.target.value)} title="Caducidad">
+                    {EXPIRY.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <button className="btn-secondary text-xs py-2 px-3 w-full justify-center" disabled={busy || !name.trim()}
+                  onClick={() => onCreate({ name: name.trim(), expires_days: days === "never" ? null : Number(days) })}>
+                  {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+                  Crear token para este agente
+                </button>
+                {error && <p className="text-[11px] text-red-600">{error}</p>}
+              </div>
             )}
-            {!token && tokenConfigured && <p className="text-[11px] text-gray-500 mt-1">El token existente no puede mostrarse; los fragmentos usan un marcador.</p>}
+            {!token && tokenConfigured && <p className="text-[11px] text-gray-500 mt-1">Los tokens existentes no pueden mostrarse; los fragmentos usan un marcador. Cree uno por agente y revóquelos de forma individual.</p>}
           </div>
         </div>
 

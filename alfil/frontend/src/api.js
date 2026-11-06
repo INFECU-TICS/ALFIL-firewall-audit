@@ -16,8 +16,8 @@ export const api = {
   // Conexiones
   listConnections:     ()         => request("GET",    "/connections"),
   mcpStatus:           ()         => request("GET",    "/mcp/status"),
-  mcpGenerateToken:    ()         => request("POST",   "/mcp/token"),
-  mcpRevokeToken:      ()         => request("DELETE", "/mcp/token"),
+  mcpCreateToken:      (data)     => request("POST",   "/mcp/tokens", data),
+  mcpRevokeToken:      (id)       => request("DELETE", `/mcp/tokens/${id}`),
   getTopology:         (auditId)  => request("GET",    `/audit/reports/${auditId}/topology`),
   getConnection:       (id)       => request("GET",    `/connections/${id}`),
   createConnection:    (data)     => request("POST",   "/connections", data),

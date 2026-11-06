@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
-from app.models.mcp_access import McpAccess
+from app.models.mcp_access import McpToken
 from app.services.sophos_rest_client import RestError, SophosRestClient
 
 
@@ -41,8 +41,11 @@ def make_conn(client, name="lab-rest", api_type="rest", mcp=True, **extra):
     return client.post("/api/v1/connections", json=body)
 
 
-def new_token(client):
-    return client.post("/api/v1/mcp/token").json()["token"]
+def new_token(client, name=None, **body):
+    name = name or f"agente-{len(client.get('/api/v1/mcp/status').json()['tokens']) + 1}"
+    r = client.post("/api/v1/mcp/tokens", json={"name": name, **body})
+    assert r.status_code == 201, r.text
+    return r.json()["token"]
 
 
 def auth(token):
@@ -54,15 +57,15 @@ def test_estados_del_mcp_y_token_solo_como_hash(client):
     token = new_token(client)
     assert token.startswith("alfil_mcp_")
     st = client.get("/api/v1/mcp/status").json()
-    assert st["state"] == "sin_actividad" and st["token_prefix"] == token[:14]
+    assert st["state"] == "sin_actividad" and st["tokens"][0]["token_prefix"] == token[:14]
     with client.Session() as db:  # el token en claro no se guarda
-        row = db.query(McpAccess).first()
+        row = db.query(McpToken).first()
         assert token not in (row.token_hash or "") and len(row.token_hash) == 64
     assert client.post("/api/v1/mcp/heartbeat", json={"version": "0.1.0", "tools": 5, "read_only": True}, headers=auth(token)).status_code == 204
     st = client.get("/api/v1/mcp/status").json()
     assert st["state"] == "en_linea" and st["info"]["version"] == "0.1.0" and st["info"]["tools"] == 5
     with client.Session() as db:  # latido antiguo -> fuera de línea
-        row = db.query(McpAccess).first()
+        row = db.query(McpToken).first()
         row.last_seen_at = datetime.now(timezone.utc) - timedelta(seconds=600)
         db.commit()
     assert client.get("/api/v1/mcp/status").json()["state"] == "fuera_de_linea"
@@ -76,16 +79,48 @@ def test_endpoints_del_mcp_exigen_token_valido(client):
         assert getattr(client, method)(url, headers=auth("alfil_mcp_falso"), **kwargs).status_code == 401  # token inventado
     token = new_token(client)
     assert client.get("/api/v1/mcp/connections", headers=auth(token)).status_code == 200
-    client.delete("/api/v1/mcp/token")  # revocar
+    tid = client.get("/api/v1/mcp/status").json()["tokens"][0]["id"]
+    assert client.delete(f"/api/v1/mcp/tokens/{tid}").status_code == 204  # revocar
     assert client.get("/api/v1/mcp/connections", headers=auth(token)).status_code == 401
     assert client.get("/api/v1/mcp/status").json()["state"] == "sin_token"
 
 
-def test_rotar_el_token_invalida_el_anterior(client):
-    old = new_token(client)
-    new = new_token(client)
-    assert client.get("/api/v1/mcp/connections", headers=auth(old)).status_code == 401
-    assert client.get("/api/v1/mcp/connections", headers=auth(new)).status_code == 200
+def test_un_token_por_agente_y_revocacion_individual(client):
+    a = new_token(client, "claude-ana")
+    b = new_token(client, "opencode-luis")
+    assert client.post("/api/v1/mcp/tokens", json={"name": "claude-ana"}).status_code == 409   # nombre único
+    assert client.post("/api/v1/mcp/tokens", json={"name": "  "}).status_code == 422
+    tokens = {t["name"]: t for t in client.get("/api/v1/mcp/status").json()["tokens"]}
+    assert set(tokens) == {"claude-ana", "opencode-luis"}
+    assert client.get("/api/v1/mcp/connections", headers=auth(a)).status_code == 200
+    assert client.get("/api/v1/mcp/connections", headers=auth(b)).status_code == 200
+    assert client.delete(f"/api/v1/mcp/tokens/{tokens['claude-ana']['id']}").status_code == 204
+    assert client.get("/api/v1/mcp/connections", headers=auth(a)).status_code == 401
+    assert client.get("/api/v1/mcp/connections", headers=auth(b)).status_code == 200     # el otro sigue vivo
+    assert client.delete("/api/v1/mcp/tokens/9999").status_code == 404
+
+
+def test_caducidad_por_defecto_7_dias_y_token_caducado_se_rechaza(client):
+    token = new_token(client, "temporal")
+    t = client.get("/api/v1/mcp/status").json()["tokens"][0]
+    created, expires = datetime.fromisoformat(t["created_at"]), datetime.fromisoformat(t["expires_at"])
+    assert (expires - created).days == 7 and client.get("/api/v1/mcp/status").json()["default_expires_days"] == 7
+    with client.Session() as db:
+        row = db.query(McpToken).first()
+        row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        db.commit()
+    r = client.get("/api/v1/mcp/connections", headers=auth(token))
+    assert r.status_code == 401 and "caducado" in r.json()["detail"]
+    st = client.get("/api/v1/mcp/status").json()
+    assert st["tokens"][0]["expired"] is True and st["state"] == "sin_token" and st["token_configured"] is False
+
+
+def test_token_sin_caducidad_y_limites(client):
+    token = new_token(client, "permanente", expires_days=None)
+    assert client.get("/api/v1/mcp/status").json()["tokens"][0]["expires_at"] is None
+    assert client.get("/api/v1/mcp/connections", headers=auth(token)).status_code == 200
+    assert client.post("/api/v1/mcp/tokens", json={"name": "x", "expires_days": 0}).status_code == 422
+    assert client.post("/api/v1/mcp/tokens", json={"name": "y", "expires_days": 366}).status_code == 422
 
 
 def test_solo_conexiones_habilitadas_y_sin_credenciales(client):

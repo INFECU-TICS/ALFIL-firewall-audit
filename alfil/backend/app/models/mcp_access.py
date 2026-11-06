@@ -4,14 +4,16 @@ from sqlalchemy.types import JSON
 from app.database import Base
 
 
-class McpAccess(Base):
-    """Acceso del servidor MCP a ALFIL (una sola fila): token (solo su hash) y último latido."""
-    __tablename__ = "mcp_access"
+class McpToken(Base):
+    """Token de acceso de un agente al MCP: uno por agente, con nombre y caducidad. Solo se guarda su SHA-256."""
+    __tablename__ = "mcp_tokens"
 
     id = Column(Integer, primary_key=True)
-    token_hash = Column(String(64), nullable=True)      # SHA-256 del token; el token solo se muestra al generarlo
-    token_prefix = Column(String(16), nullable=True)    # para reconocerlo en pantalla
-    token_created_at = Column(DateTime(timezone=True), nullable=True)
-    last_seen_at = Column(DateTime(timezone=True), nullable=True)   # último latido del MCP local (stdio)
-    last_used_at = Column(DateTime(timezone=True), nullable=True)   # última lectura de un agente a través del proxy
+    name = Column(String(80), nullable=False)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    token_prefix = Column(String(16), nullable=False)   # para reconocerlo en pantalla
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)      # None = no caduca
+    last_seen_at = Column(DateTime(timezone=True), nullable=True)    # último latido del MCP local (stdio)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)    # última lectura de un agente a través del proxy
     info = Column(JSON, nullable=True)                  # versión, herramientas, solo lectura, transporte

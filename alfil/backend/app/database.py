@@ -25,9 +25,6 @@ def ensure_schema() -> None:
     if "api_type" not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE connections ADD COLUMN api_type VARCHAR(10) NOT NULL DEFAULT 'xml'"))
-    if "mcp_access" in insp.get_table_names() and "last_used_at" not in {c["name"] for c in insp.get_columns("mcp_access")}:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE mcp_access ADD COLUMN last_used_at DATETIME"))
     if "mcp_enabled" not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE connections ADD COLUMN mcp_enabled BOOLEAN NOT NULL DEFAULT 0"))

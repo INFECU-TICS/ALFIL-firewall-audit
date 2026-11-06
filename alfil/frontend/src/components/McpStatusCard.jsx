@@ -17,7 +17,7 @@ export default function McpStatusCard({ refreshKey = 0 }) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [token, setToken] = useState(null);       // solo existe justo después de generarlo
+  const [token, setToken] = useState(null);       // { value, name }: solo existe justo después de crearlo
   const [connectOpen, setConnectOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -26,15 +26,16 @@ export default function McpStatusCard({ refreshKey = 0 }) {
 
   useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, [load, refreshKey]);
 
-  const generate = async () => {
-    if (status?.token_configured && !window.confirm("Ya existe un token. Al generar uno nuevo, el actual dejará de funcionar. ¿Continuar?")) return;
-    setBusy(true);
-    try { setToken((await api.mcpGenerateToken()).token); await load(); } catch (e) { setError(e.message); } finally { setBusy(false); }
+  const [createError, setCreateError] = useState("");
+  const create = async (data) => {
+    setBusy(true); setCreateError("");
+    try { const r = await api.mcpCreateToken(data); setToken({ value: r.token, name: r.name }); await load(); }
+    catch (e) { setCreateError(e.message); } finally { setBusy(false); }
   };
-  const revoke = async () => {
-    if (!window.confirm("¿Revocar el token? Los agentes conectados dejarán de poder usar las conexiones de ALFIL.")) return;
+  const revoke = async (t) => {
+    if (!window.confirm(`¿Revocar el token «${t.name}»? El agente que lo usa dejará de poder leer las conexiones de ALFIL.`)) return;
     setBusy(true);
-    try { await api.mcpRevokeToken(); setToken(null); await load(); } catch (e) { setError(e.message); } finally { setBusy(false); }
+    try { await api.mcpRevokeToken(t.id); await load(); } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
 
   const remote = status?.remote || { configured: false };
@@ -83,7 +84,7 @@ export default function McpStatusCard({ refreshKey = 0 }) {
             </div>
             <div><dt className="text-gray-400">Conexiones habilitadas</dt><dd className="font-medium">{status.enabled_connections}</dd></div>
             <div><dt className="text-gray-400">Último uso de un agente</dt><dd className="font-medium">{ago(used)}</dd></div>
-            {status.token_prefix && <div><dt className="text-gray-400">Token</dt><dd className="font-mono font-medium">{status.token_prefix}…</dd></div>}
+            <div><dt className="text-gray-400">Tokens activos</dt><dd className="font-medium">{(status.tokens || []).filter((t) => !t.expired).length}</dd></div>
           </dl>
         )}
 
@@ -91,16 +92,40 @@ export default function McpStatusCard({ refreshKey = 0 }) {
           <button className="btn-primary text-xs py-1.5 px-3" onClick={() => setConnectOpen(true)}>
             <Plug className="w-3.5 h-3.5" /> Conectar un agente
           </button>
-          {status?.token_configured && (
-            <button className="btn-secondary text-xs py-1.5 px-3 text-red-700" onClick={revoke} disabled={busy} title="Revocar token">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
       </div>
+      {(status?.tokens || []).length > 0 && (
+        <div className="mt-3 border-t border-gray-100 pt-3 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead><tr className="text-left text-gray-400">
+              <th className="font-normal pb-1">Agente</th><th className="font-normal pb-1">Token</th>
+              <th className="font-normal pb-1">Caducidad</th><th className="font-normal pb-1">Último uso</th><th />
+            </tr></thead>
+            <tbody>
+              {status.tokens.map((t) => (
+                <tr key={t.id} className="border-t border-gray-50">
+                  <td className="py-1.5 font-medium text-gray-800">{t.name}</td>
+                  <td className="py-1.5 font-mono text-gray-600">{t.token_prefix}…</td>
+                  <td className="py-1.5">
+                    {t.expired ? <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-800 font-semibold">Caducado</span>
+                      : t.expires_at ? new Date(t.expires_at).toLocaleDateString() : "No caduca"}
+                  </td>
+                  <td className="py-1.5 text-gray-600">{ago(secondsSince(t.last_used_at))}</td>
+                  <td className="py-1.5 text-right">
+                    <button className="text-red-700 hover:text-red-900 p-1" onClick={() => revoke(t)} disabled={busy} title="Revocar token">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {connectOpen && (
-        <AgentConnectModal token={token} tokenConfigured={!!status?.token_configured} onGenerate={generate} busy={busy}
-          onClose={() => { setConnectOpen(false); setToken(null); }} />
+        <AgentConnectModal token={token?.value} tokenName={token?.name} tokenConfigured={!!status?.token_configured}
+          defaultDays={status?.default_expires_days} onCreate={create} busy={busy} error={createError}
+          onClose={() => { setConnectOpen(false); setToken(null); setCreateError(""); }} />
       )}
     </section>
   );
