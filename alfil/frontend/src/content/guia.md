@@ -201,6 +201,8 @@ Cualquier cliente MCP compatible con transporte **stdio** puede usarlo. La defin
 | `list_firewall_rules(only_enabled)` | Resumen de las reglas IPv4 |
 | `get_firewall_rule(id_or_name)` | Detalle de una regla por nombre o UUID |
 | `audit_firewall()` | Auditoría de reglas (Any→Any, sin log, duplicadas, deshabilitadas) con puntaje |
+| `get_topology(format)` | Topología de configuración en vivo: zonas con interfaces/VLAN, rutas estáticas, VPN IPsec y advertencias (salto inalcanzable, subredes solapadas). `format`: `summary` o `graph`. Solo con conexiones de ALFIL |
+| `explain_path(source_ip, destination_ip)` | Por dónde pasa un flujo: red, interfaz y zona de cada extremo, ruta o VPN, problemas (blackhole, sin ruta, salto inalcanzable) y reglas candidatas del par de zonas. No evalúa NAT, SD-WAN ni ruteo dinámico. Solo con conexiones de ALFIL |
 
 Todas las herramientas que consultan un firewall aceptan el parámetro opcional `connection` (nombre o id de la conexión de ALFIL, o `directa`).
 
@@ -256,7 +258,7 @@ Además indica la versión, el número de herramientas, el modo (solo lectura), 
 **MCP**
 - Auditoría ampliada: MFA de administradores, acceso de administración desde WAN, hosts y servicios sin uso, NAT, interfaces y notificaciones.
 - Diagnóstico: `explain_rule_match` (qué regla casa con un tráfico) y `trace_object_usage` (dónde se usa un objeto).
-- Herramienta `get_topology` (JSON o Mermaid) y `explain_path(origen, destino)`: por dónde sale el tráfico y qué regla lo permite.
+- `explain_path` con evaluación completa de la regla que coincide (redes, servicios, usuarios, NAT); hoy lista candidatas por zona.
 - Prompts MCP guiados ("revisión de salud", "por qué no pasa este tráfico").
 - **Fase 2 – escritura con confirmación:** propuestas de cambio con vista previa (*dry-run*), copia de seguridad previa, lista de recursos permitidos y confirmación explícita, deshabilitada por defecto.
 

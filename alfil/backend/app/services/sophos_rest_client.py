@@ -177,6 +177,28 @@ class SophosRestClient:
             return {"success": False, "error": str(e)}
         return {"success": True, "data": nz.build_device_access(zones, acl)}
 
+    def collect_topology_data(self) -> Dict[str, Any]:
+        """Solo lo que necesita `build_topology` (zonas, interfaces, rutas, VPN, hosts, nombre del equipo)."""
+        implemented: Dict[str, Callable[[], Dict[str, Any]]] = {
+            "admin_settings": self.get_admin_settings, "zones": self.get_network_zones,
+            "static_routes": self.get_static_routes, "vpn_ipsec_connections": self.get_vpn_ipsec_connections,
+            "hosts": self.get_hosts, "_interface_bundle": self.get_interface_bundle,
+        }
+        results: Dict[str, Any] = {}
+        with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
+            futures = {pool.submit(fn): key for key, fn in implemented.items()}
+            for fut in as_completed(futures):
+                key = futures[fut]
+                try:
+                    results[key] = fut.result()
+                except Exception as e:
+                    results[key] = {"success": False, "error": str(e)}
+        bundle = results.pop("_interface_bundle", {})
+        if "success" in bundle:
+            bundle = {k: dict(bundle) for k in ("interfaces", "vlans", "lags", "aliases")}
+        results.update(bundle)
+        return results
+
     def collect_audit_data(self) -> Dict[str, Any]:
         implemented: Dict[str, Callable[[], Dict[str, Any]]] = {
             "admin_settings": self.get_admin_settings, "device_access": self.get_device_access,

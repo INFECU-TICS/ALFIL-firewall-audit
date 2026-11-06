@@ -73,6 +73,10 @@ class AlfilHub:
     async def heartbeat(self, payload: dict[str, Any]) -> None:
         await self._request("POST", "heartbeat", json=payload)
 
+    async def topology(self, connection_id: int) -> dict[str, Any]:
+        """Grafo de topología calculado por ALFIL con la configuración actual del firewall."""
+        return (await self._request("GET", f"connections/{connection_id}/topology")).json()
+
     def client_for(self, connection_id: int) -> "AlfilProxyClient":
         return AlfilProxyClient(self, connection_id)
 
@@ -91,6 +95,9 @@ class AlfilProxyClient:
 
     async def get_all(self, path: str, params: dict[str, Any] | None = None, max_items: int = 1000) -> list[Any]:
         return await get_all_pages(self.get, path, params, max_items)
+
+    async def topology(self) -> dict[str, Any]:
+        return await self._hub.topology(self._id)
 
     async def aclose(self) -> None:  # el hub es compartido
         return None

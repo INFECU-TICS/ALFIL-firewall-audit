@@ -214,3 +214,26 @@ def test_estado_del_servicio_remoto_y_ultimo_uso(client, monkeypatch):
     assert client.get("/api/v1/mcp/status").json()["last_used_at"] is None
     client.get("/api/v1/mcp/connections", headers=auth(token))
     assert client.get("/api/v1/mcp/status").json()["last_used_at"] is not None
+
+
+def test_topologia_en_vivo_para_el_mcp(client, monkeypatch):
+    from tests.test_topology import base_raw
+    monkeypatch.setattr(SophosRestClient, "collect_topology_data", lambda self: base_raw())
+    cid = make_conn(client).json()["id"]
+    h = auth(new_token(client))
+    assert client.get(f"/api/v1/mcp/connections/{cid}/topology").status_code == 401           # exige token
+    r = client.get(f"/api/v1/mcp/connections/{cid}/topology", headers=h)
+    assert r.status_code == 200
+    topo = r.json()
+    assert {n["id"] for n in topo["nodes"]} >= {"fw", "zone:LAN", "if:PortA", "net:10.0.1.0/24"} and topo["meta"]["source"] == "rest"
+    assert "secreto" not in r.text and "password" not in r.text
+    off = make_conn(client, "off", mcp=False).json()["id"]
+    assert client.get(f"/api/v1/mcp/connections/{off}/topology", headers=h).status_code == 404  # solo habilitadas
+
+
+def test_topologia_sin_datos_de_red_es_502(client, monkeypatch):
+    fail = {"success": False, "error": "HTTP 500"}
+    monkeypatch.setattr(SophosRestClient, "collect_topology_data", lambda self: {"zones": fail, "interfaces": fail})
+    cid = make_conn(client).json()["id"]
+    r = client.get(f"/api/v1/mcp/connections/{cid}/topology", headers=auth(new_token(client)))
+    assert r.status_code == 502 and "HTTP 500" in r.json()["detail"]

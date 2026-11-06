@@ -1,0 +1,482 @@
+{
+ "nodes": [
+  {
+   "id": "fw",
+   "type": "firewall",
+   "label": "fw-lab",
+   "parent": null,
+   "data": {
+    "role": "firewall"
+   }
+  },
+  {
+   "id": "zone:LAN",
+   "type": "zone",
+   "label": "LAN",
+   "parent": null,
+   "data": {
+    "role": "lan",
+    "zone_type": "LAN"
+   }
+  },
+  {
+   "id": "zone:WAN",
+   "type": "zone",
+   "label": "WAN",
+   "parent": null,
+   "data": {
+    "role": "wan",
+    "zone_type": "WAN"
+   }
+  },
+  {
+   "id": "zone:DMZ",
+   "type": "zone",
+   "label": "DMZ",
+   "parent": null,
+   "data": {
+    "role": "dmz",
+    "zone_type": "DMZ"
+   }
+  },
+  {
+   "id": "zone:VPN",
+   "type": "zone",
+   "label": "VPN",
+   "parent": null,
+   "data": {
+    "role": "vpn",
+    "zone_type": "VPN"
+   }
+  },
+  {
+   "id": "if:PortA",
+   "type": "interface",
+   "label": "PortA",
+   "parent": "zone:LAN",
+   "data": {
+    "kind": "physical",
+    "ip": "10.0.1.1",
+    "netmask": "255.255.255.0",
+    "zone": "LAN",
+    "vlan_id": "",
+    "parent_interface": "",
+    "members": [],
+    "hardware": "",
+    "up": true,
+    "unconfigured": false
+   }
+  },
+  {
+   "id": "net:10.0.1.0/24",
+   "type": "network",
+   "label": "10.0.1.0/24",
+   "parent": "zone:LAN",
+   "data": {
+    "role": "lan"
+   }
+  },
+  {
+   "id": "if:PortB",
+   "type": "interface",
+   "label": "PortB",
+   "parent": "zone:WAN",
+   "data": {
+    "kind": "physical",
+    "ip": "203.0.113.2",
+    "netmask": "255.255.255.252",
+    "zone": "WAN",
+    "vlan_id": "",
+    "parent_interface": "",
+    "members": [],
+    "hardware": "",
+    "up": true,
+    "unconfigured": false
+   }
+  },
+  {
+   "id": "net:203.0.113.0/30",
+   "type": "network",
+   "label": "203.0.113.0/30",
+   "parent": "zone:WAN",
+   "data": {
+    "role": "wan"
+   }
+  },
+  {
+   "id": "zone:(sin zona)",
+   "type": "zone",
+   "label": "(sin zona)",
+   "parent": null,
+   "data": {
+    "role": "other",
+    "zone_type": ""
+   }
+  },
+  {
+   "id": "if:PortC",
+   "type": "interface",
+   "label": "PortC",
+   "parent": "zone:(sin zona)",
+   "data": {
+    "kind": "physical",
+    "ip": "",
+    "netmask": "",
+    "zone": "",
+    "vlan_id": "",
+    "parent_interface": "",
+    "members": [],
+    "hardware": "",
+    "up": false,
+    "unconfigured": true
+   }
+  },
+  {
+   "id": "if:PortA.10",
+   "type": "interface",
+   "label": "PortA.10",
+   "parent": "zone:DMZ",
+   "data": {
+    "kind": "vlan",
+    "ip": "10.0.10.1",
+    "netmask": "255.255.255.0",
+    "zone": "DMZ",
+    "vlan_id": 10,
+    "parent_interface": "PortA",
+    "members": [],
+    "hardware": "",
+    "up": true,
+    "unconfigured": false
+   }
+  },
+  {
+   "id": "net:10.0.10.0/24",
+   "type": "network",
+   "label": "10.0.10.0/24",
+   "parent": "zone:DMZ",
+   "data": {
+    "role": "dmz"
+   }
+  },
+  {
+   "id": "net:198.51.100.0/29",
+   "type": "network",
+   "label": "198.51.100.0/29",
+   "parent": "zone:WAN",
+   "data": {
+    "role": "wan"
+   }
+  },
+  {
+   "id": "internet",
+   "type": "internet",
+   "label": "Internet",
+   "parent": null,
+   "data": {
+    "role": "wan"
+   }
+  },
+  {
+   "id": "rt:203.0.113.1",
+   "type": "router",
+   "label": "203.0.113.1",
+   "parent": "zone:WAN",
+   "data": {
+    "gateway": true,
+    "role": "wan"
+   }
+  },
+  {
+   "id": "rt:10.0.1.254",
+   "type": "router",
+   "label": "10.0.1.254",
+   "parent": "zone:LAN",
+   "data": {
+    "role": "lan"
+   }
+  },
+  {
+   "id": "rn:172.16.0.0/16",
+   "type": "remote_network",
+   "label": "172.16.0.0/16",
+   "parent": "zone:LAN",
+   "data": {
+    "role": "lan"
+   }
+  },
+  {
+   "id": "rt:10.99.99.1",
+   "type": "router",
+   "label": "10.99.99.1",
+   "parent": null,
+   "data": {
+    "unreachable": true,
+    "role": "other"
+   }
+  },
+  {
+   "id": "rn:192.168.50.0/24",
+   "type": "remote_network",
+   "label": "192.168.50.0/24",
+   "parent": null,
+   "data": {
+    "role": "other"
+   }
+  },
+  {
+   "id": "bh:198.18.0.0/16",
+   "type": "blackhole",
+   "label": "198.18.0.0/16 (descartada)",
+   "parent": null,
+   "data": {
+    "role": "other"
+   }
+  },
+  {
+   "id": "vpn:sitio-b",
+   "type": "vpn_tunnel",
+   "label": "sitio-b",
+   "parent": null,
+   "data": {
+    "role": "vpn",
+    "status": "enable",
+    "enabled": true,
+    "connection_type": "SiteToSite",
+    "policy": "p",
+    "local_networks": [
+     "10.0.1.0/24"
+    ]
+   }
+  },
+  {
+   "id": "site:198.51.100.77",
+   "type": "remote_site",
+   "label": "198.51.100.77",
+   "parent": null,
+   "data": {
+    "role": "vpn",
+    "remote_gateway": "198.51.100.77"
+   }
+  },
+  {
+   "id": "rn:10.200.0.0/16",
+   "type": "remote_network",
+   "label": "10.200.0.0/16",
+   "parent": null,
+   "data": {
+    "role": "vpn"
+   }
+  }
+ ],
+ "edges": [
+  {
+   "id": "fw->if:PortA:interface",
+   "source": "fw",
+   "target": "if:PortA",
+   "kind": "interface",
+   "label": "",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "if:PortA->net:10.0.1.0/24:connected",
+   "source": "if:PortA",
+   "target": "net:10.0.1.0/24",
+   "kind": "connected",
+   "label": "",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "fw->if:PortB:interface",
+   "source": "fw",
+   "target": "if:PortB",
+   "kind": "interface",
+   "label": "",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "if:PortB->net:203.0.113.0/30:connected",
+   "source": "if:PortB",
+   "target": "net:203.0.113.0/30",
+   "kind": "connected",
+   "label": "",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "fw->if:PortC:interface",
+   "source": "fw",
+   "target": "if:PortC",
+   "kind": "interface",
+   "label": "",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "fw->if:PortA.10:interface",
+   "source": "fw",
+   "target": "if:PortA.10",
+   "kind": "interface",
+   "label": "VLAN 10",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "if:PortA.10->net:10.0.10.0/24:connected",
+   "source": "if:PortA.10",
+   "target": "net:10.0.10.0/24",
+   "kind": "connected",
+   "label": "",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "if:PortB->net:198.51.100.0/29:connected",
+   "source": "if:PortB",
+   "target": "net:198.51.100.0/29",
+   "kind": "connected",
+   "label": "alias",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "net:203.0.113.0/30->rt:203.0.113.1:gateway",
+   "source": "net:203.0.113.0/30",
+   "target": "rt:203.0.113.1",
+   "kind": "gateway",
+   "label": "gateway",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "rt:203.0.113.1->internet:uplink",
+   "source": "rt:203.0.113.1",
+   "target": "internet",
+   "kind": "uplink",
+   "label": "",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "net:10.0.1.0/24->rt:10.0.1.254:gateway",
+   "source": "net:10.0.1.0/24",
+   "target": "rt:10.0.1.254",
+   "kind": "gateway",
+   "label": "gateway",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "rt:10.0.1.254->rn:172.16.0.0/16:route",
+   "source": "rt:10.0.1.254",
+   "target": "rn:172.16.0.0/16",
+   "kind": "route",
+   "label": "to-hq",
+   "dashed": false,
+   "data": {
+    "distance": 1,
+    "route": "to-hq"
+   }
+  },
+  {
+   "id": "rt:203.0.113.1->internet:route",
+   "source": "rt:203.0.113.1",
+   "target": "internet",
+   "kind": "route",
+   "label": "ruta por defecto",
+   "dashed": false,
+   "data": {
+    "distance": 1,
+    "route": "default"
+   }
+  },
+  {
+   "id": "fw->rt:10.99.99.1:gateway",
+   "source": "fw",
+   "target": "rt:10.99.99.1",
+   "kind": "gateway",
+   "label": "sin red conectada",
+   "dashed": true,
+   "data": {}
+  },
+  {
+   "id": "rt:10.99.99.1->rn:192.168.50.0/24:route",
+   "source": "rt:10.99.99.1",
+   "target": "rn:192.168.50.0/24",
+   "kind": "route",
+   "label": "huerfana",
+   "dashed": false,
+   "data": {
+    "distance": 1,
+    "route": "huerfana"
+   }
+  },
+  {
+   "id": "fw->bh:198.18.0.0/16:route",
+   "source": "fw",
+   "target": "bh:198.18.0.0/16",
+   "kind": "route",
+   "label": "agujero",
+   "dashed": true,
+   "data": {
+    "distance": 1,
+    "route": "agujero"
+   }
+  },
+  {
+   "id": "if:PortB->vpn:sitio-b:vpn",
+   "source": "if:PortB",
+   "target": "vpn:sitio-b",
+   "kind": "vpn",
+   "label": "SiteToSite",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "vpn:sitio-b->site:198.51.100.77:vpn",
+   "source": "vpn:sitio-b",
+   "target": "site:198.51.100.77",
+   "kind": "vpn",
+   "label": "",
+   "dashed": false,
+   "data": {}
+  },
+  {
+   "id": "site:198.51.100.77->rn:10.200.0.0/16:route",
+   "source": "site:198.51.100.77",
+   "target": "rn:10.200.0.0/16",
+   "kind": "route",
+   "label": "",
+   "dashed": false,
+   "data": {}
+  }
+ ],
+ "meta": {
+  "source": "rest",
+  "counts": {
+   "firewall": 1,
+   "zone": 5,
+   "interface": 4,
+   "network": 4,
+   "internet": 1,
+   "router": 3,
+   "remote_network": 3,
+   "blackhole": 1,
+   "vpn_tunnel": 1,
+   "remote_site": 1
+  },
+  "warnings": [
+   {
+    "code": "route_nexthop_unreachable",
+    "severity": "critical",
+    "message": "La ruta huerfana (192.168.50.0/24) usa el salto 10.99.99.1, que no está en ninguna red conectada del firewall.",
+    "node": "rt:10.99.99.1"
+   }
+  ],
+  "notes": [
+   "Topología basada en la configuración. El ruteo dinámico (OSPF/BGP/RIP) y las rutas aprendidas no están disponibles por la API, por lo que no se dibujan."
+  ]
+ }
+}

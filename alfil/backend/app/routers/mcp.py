@@ -24,6 +24,7 @@ from app.models.mcp_access import McpToken
 from app.services.firewall_client import client_for_connection
 from app.services.get_catalog import is_known_get_path
 from app.services.sophos_rest_client import RestError, SophosRestClient
+from app.services.topology import build_topology
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
 
@@ -223,3 +224,18 @@ def mcp_proxy_get(ref: str, request: Request, path: str, access: McpToken = Depe
     except RestError as e:
         raise HTTPException(status_code=502, detail=str(e))
     return JSONResponse(content=data)
+
+
+@router.get("/connections/{ref}/topology")
+def mcp_topology(ref: str, access: McpToken = Depends(require_mcp_token), db: Session = Depends(get_db)):
+    """Grafo de topología calculado al momento con la configuración actual del firewall (solo lectura)."""
+    _touch_used(access, db)
+    conn = _resolve(ref, db)
+    client = client_for_connection(conn)
+    if not isinstance(client, SophosRestClient):
+        raise HTTPException(status_code=403, detail="La conexión no usa la API REST")
+    raw = client.collect_topology_data()
+    if not any((raw.get(k) or {}).get("success") for k in ("zones", "interfaces")):
+        err = (raw.get("zones") or {}).get("error") or (raw.get("interfaces") or {}).get("error") or "sin datos"
+        raise HTTPException(status_code=502, detail=f"No se pudo leer la configuración de red del firewall: {err}")
+    return build_topology(raw, {"name": conn.name, "api_type": "rest"})

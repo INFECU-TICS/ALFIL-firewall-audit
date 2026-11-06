@@ -29,6 +29,7 @@ from mcp.types import ToolAnnotations
 from . import __version__
 from .alfil import AlfilError, AlfilHub, heartbeat_loop
 from .analysis import rules as rule_analysis
+from .analysis import topology as topo_analysis
 from .client import SophosApiError, SophosClient, search_catalog
 from .config import AlfilSettings, ConfigError, Settings
 
@@ -152,7 +153,8 @@ mcp = MCPServer(
     instructions=(
         "Consulta y auditoría de solo lectura de un Sophos Firewall v23 vía REST API v1. "
         "Use list_connections para ver los firewalls disponibles y el parámetro `connection` para elegir uno. "
-        "list_api_endpoints y api_get leen cualquier ruta GET; audit_firewall devuelve score y hallazgos de reglas. "
+        "list_api_endpoints y api_get leen cualquier ruta GET; audit_firewall devuelve score y hallazgos de reglas; "
+        "get_topology y explain_path (solo con conexiones de ALFIL) describen la red y explican la ruta de un flujo. "
         "Ninguna herramienta modifica el firewall."
     ),
 )
@@ -237,6 +239,44 @@ async def audit_firewall(connection: str | None = None) -> dict[str, Any]:
     client, label = await resolve_client(connection)
     rules = await client.get_all("/firewall/rules/ipv4")
     return {"connection": label, **rule_analysis.audit_rules(rules)}
+
+
+async def load_topology(connection: str | None) -> tuple[dict[str, Any], str, Any]:
+    client, label = await resolve_client(connection)
+    if not hasattr(client, "topology"):
+        raise SophosApiError("La topología solo está disponible con conexiones de ALFIL (ALFIL_URL + ALFIL_MCP_TOKEN): "
+                             "ALFIL calcula el grafo con sus colectores de red.")
+    return await client.topology(), label, client
+
+
+@read_tool
+async def get_topology(connection: str | None = None, format: str = "summary") -> dict[str, Any]:
+    """Topología de red de configuración: zonas con sus interfaces/VLAN, rutas estáticas, VPN IPsec y advertencias
+    (salto inalcanzable, subredes solapadas, interfaz con IP sin zona).
+
+    `format`: "summary" (por defecto, legible) o "graph" (nodos y aristas completos). No incluye ruteo dinámico.
+    Requiere una conexión de ALFIL.
+    """
+    if format not in ("summary", "graph"):
+        raise SophosApiError('`format` debe ser "summary" o "graph".')
+    graph, label, _ = await load_topology(connection)
+    return {"connection": label, **(topo_analysis.summarize(graph) if format == "summary" else graph)}
+
+
+@read_tool
+async def explain_path(source_ip: str, destination_ip: str, connection: str | None = None, include_rules: bool = True) -> dict[str, Any]:
+    """Explica por dónde pasa un flujo origen→destino (IPv4): red/interfaz/zona de cada extremo, ruta o VPN que usa,
+    problemas (blackhole, sin ruta, salto inalcanzable) y, con `include_rules`, las reglas candidatas del par de zonas.
+
+    Usa la configuración (no tráfico real): no evalúa NAT, SD-WAN ni ruteo dinámico. Requiere una conexión de ALFIL.
+    """
+    graph, label, client = await load_topology(connection)
+    rules = await client.get_all("/firewall/rules/ipv4") if include_rules else None
+    try:
+        result = topo_analysis.explain_path(graph, source_ip, destination_ip, rules)
+    except ValueError as exc:
+        raise SophosApiError(f"Dirección IP no válida: {exc}") from exc
+    return {"connection": label, **result}
 
 
 @mcp.resource("firewall://summary")

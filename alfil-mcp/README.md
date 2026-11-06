@@ -16,6 +16,8 @@ Servidor MCP **de solo lectura** para Sophos Firewall v23 sobre su REST API v1 (
 | `list_firewall_rules(only_enabled)` | Resumen de reglas IPv4 |
 | `get_firewall_rule(id_or_name)` | Detalle de una regla |
 | `audit_firewall()` | Hallazgos de reglas (Any→Any, sin log, duplicadas, deshabilitadas) y score 0–100 |
+| `get_topology(format)` | Topología de configuración (zonas, interfaces/VLAN, rutas, VPN, advertencias). Solo con conexiones de ALFIL |
+| `explain_path(source_ip, destination_ip)` | Ruta de un flujo según la configuración: zonas, interfaz, ruta/VPN, problemas y reglas candidatas por zona. Solo con conexiones de ALFIL |
 
 Resource: `firewall://summary`. Próximo: hardening de admin (MFA, acceso WAN), objetos sin uso, `explain_rule_match`.
 
