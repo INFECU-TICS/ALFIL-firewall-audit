@@ -29,6 +29,7 @@ from mcp.types import ToolAnnotations
 from . import __version__
 from .alfil import AlfilError, AlfilHub, heartbeat_loop
 from .analysis import rules as rule_analysis
+from .analysis import match as match_analysis
 from .analysis import topology as topo_analysis
 from .client import SophosApiError, SophosClient, search_catalog
 from .config import AlfilSettings, ConfigError, Settings
@@ -154,7 +155,8 @@ mcp = MCPServer(
         "Consulta y auditoría de solo lectura de un Sophos Firewall v23 vía REST API v1. "
         "Use list_connections para ver los firewalls disponibles y el parámetro `connection` para elegir uno. "
         "list_api_endpoints y api_get leen cualquier ruta GET; audit_firewall devuelve score y hallazgos de reglas; "
-        "get_topology y explain_path (solo con conexiones de ALFIL) describen la red y explican la ruta de un flujo. "
+        "get_topology y explain_path (solo con conexiones de ALFIL) describen la red y explican la ruta de un flujo; "
+        "explain_rule_match indica qué regla decide un flujo. "
         "Ninguna herramienta modifica el firewall."
     ),
 )
@@ -276,6 +278,41 @@ async def explain_path(source_ip: str, destination_ip: str, connection: str | No
         result = topo_analysis.explain_path(graph, source_ip, destination_ip, rules)
     except ValueError as exc:
         raise SophosApiError(f"Dirección IP no válida: {exc}") from exc
+    return {"connection": label, **result}
+
+
+@read_tool
+async def explain_rule_match(source_ip: str, destination_ip: str, protocol: str = "tcp", destination_port: int | None = None,
+                             source_zone: str | None = None, destination_zone: str | None = None,
+                             connection: str | None = None) -> dict[str, Any]:
+    """¿Qué regla de firewall decide este flujo? Evalúa en orden las reglas IPv4 habilitadas (zonas, redes, servicios,
+    exclusiones) y devuelve la que decide, las reglas anteriores que podrían aplicar y por qué no coinciden las del par de zonas.
+
+    `protocol`: tcp, udp, icmp… (el puerto solo aplica a tcp/udp). Si no indica zonas y la conexión es de ALFIL, las deduce
+    de la topología; si no puede, evalúa sin filtrar por zona y lo avisa. No evalúa NAT, horarios, usuarios, FQDN, país, MAC
+    ni inspección: esas reglas quedan como «posibles». Solo lectura.
+    """
+    client, label = await resolve_client(connection)
+    zones_note = None
+    if not (source_zone and destination_zone) and hasattr(client, "topology"):
+        try:
+            graph = await client.topology()
+            resolved = (topo_analysis.resolve_ip(graph, source_ip), topo_analysis.resolve_ip(graph, destination_ip))
+            source_zone = source_zone or resolved[0].get("zone")
+            destination_zone = destination_zone or resolved[1].get("zone")
+            zones_note = "Zonas deducidas de la topología de configuración."
+        except (SophosApiError, ValueError) as exc:
+            zones_note = f"No se pudieron deducir las zonas de la topología ({exc})."
+    rules = await client.get_all("/firewall/rules/ipv4")
+    objs = match_analysis.Objects(
+        hosts=await client.get_all("/network/addresses/ipv4"), host_groups=await client.get_all("/network/address-groups/ipv4"),
+        services=await client.get_all("/network/services"), service_groups=await client.get_all("/network/service-groups"))
+    try:
+        result = match_analysis.explain_rule_match(rules, objs, source_ip, destination_ip, protocol, destination_port, source_zone, destination_zone)
+    except ValueError as exc:
+        raise SophosApiError(f"Entrada no válida: {exc}") from exc
+    if zones_note:
+        result["findings"].insert(0, {"severity": "info", "message": zones_note})
     return {"connection": label, **result}
 
 

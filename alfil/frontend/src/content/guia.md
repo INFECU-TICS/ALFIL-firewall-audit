@@ -202,6 +202,7 @@ Cualquier cliente MCP compatible con transporte **stdio** puede usarlo. La defin
 | `get_firewall_rule(id_or_name)` | Detalle de una regla por nombre o UUID |
 | `audit_firewall()` | Auditoría de reglas (Any→Any, sin log, duplicadas, deshabilitadas) con puntaje |
 | `get_topology(format)` | Topología de configuración en vivo: zonas con interfaces/VLAN, rutas estáticas, VPN IPsec y advertencias (salto inalcanzable, subredes solapadas). `format`: `summary` o `graph`. Solo con conexiones de ALFIL |
+| `explain_rule_match(source_ip, destination_ip, protocol, destination_port)` | Qué regla decide un flujo: evalúa en orden zonas, redes (host, red, rango, lista, grupo), servicios y exclusiones; indica las reglas anteriores que **podrían** aplicar (FQDN, país, MAC, horario o usuarios no se pueden evaluar) y por qué no coinciden las del par de zonas. Deduce las zonas de la topología si no se indican |
 | `explain_path(source_ip, destination_ip)` | Por dónde pasa un flujo: red, interfaz y zona de cada extremo, ruta o VPN, problemas (blackhole, sin ruta, salto inalcanzable) y reglas candidatas del par de zonas. No evalúa NAT, SD-WAN ni ruteo dinámico. Solo con conexiones de ALFIL |
 
 Todas las herramientas que consultan un firewall aceptan el parámetro opcional `connection` (nombre o id de la conexión de ALFIL, o `directa`).
