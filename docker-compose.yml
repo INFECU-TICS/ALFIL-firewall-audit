@@ -9,6 +9,7 @@ services:
     environment:
       - DATABASE_URL=sqlite:////data/alfil.db
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - ENCRYPTION_KEY_OLD=${ENCRYPTION_KEY_OLD:-}
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost"]}
       - DEBUG=${DEBUG:-false}
       - SOPHOS_REQUEST_TIMEOUT=${SOPHOS_REQUEST_TIMEOUT:-90}

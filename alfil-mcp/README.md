@@ -1,6 +1,6 @@
 # ALFIL-MCP
 
-Servidor MCP **de solo lectura** para Sophos Firewall v23 sobre su REST API v1 (`/api/firewall-config/v1`). Parte de ALFIL (Automated Layered Firewall Inspection & Logic). Categorías del reto: Optimizer + Troubleshoot (fase 2: Automation con confirmación).
+Servidor MCP **de solo lectura** para Sophos Firewall v23 sobre su REST API v1 (`/api/firewall-config/v1`). Parte de ALFIL (Automated Layered Firewall Inspection & Logic). Enfoque: optimización (Optimizer) y diagnóstico (Troubleshoot); fase 2: automatización con confirmación.
 
 > Estado: fase 1 (validada en vivo contra un firewall v23). Pendientes y roadmap: [`../docs/ESTADO_Y_PENDIENTES.md`](../docs/ESTADO_Y_PENDIENTES.md).
 >

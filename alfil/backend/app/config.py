@@ -12,6 +12,8 @@ class Settings(BaseSettings):
 
     # Encryption key for storing passwords (should be set via env var in production)
     encryption_key: str = "your-encryption-key-here-change-in-production"
+    # Clave anterior: solo para rotar ENCRYPTION_KEY (se usa una vez al arrancar para reescribir las credenciales)
+    encryption_key_old: str = ""
 
     # API XML de Sophos: algunos equipos tardan decenas de segundos por entidad (p. ej. FirewallRule ~50 s en v23).
     sophos_request_timeout: int = 90   # segundos por consulta

@@ -262,8 +262,8 @@ Además indica la versión, el número de herramientas, el modo (solo lectura), 
 - **Fase 2 – escritura con confirmación:** propuestas de cambio con vista previa (*dry-run*), copia de seguridad previa, lista de recursos permitidos y confirmación explícita, deshabilitada por defecto.
 
 ## 8. Seguridad y buenas prácticas
-- Las contraseñas y API keys se guardan **cifradas**; la clave de cifrado (`ENCRYPTION_KEY`) se define por variable de entorno y **no debe cambiarse** una vez en uso: invalidaría las credenciales guardadas.
-- Genere una `ENCRYPTION_KEY` propia y única por despliegue; no use valores de ejemplo.
+- Las contraseñas y API keys se guardan **cifradas** con una clave derivada de `ENCRYPTION_KEY` y una sal aleatoria propia de cada instalación. Con `DEBUG=false` el servidor **no arranca** si la clave falta, es de ejemplo o tiene menos de 32 caracteres. Para cambiarla, ponga la nueva en `ENCRYPTION_KEY` y la anterior en `ENCRYPTION_KEY_OLD` durante un arranque: ALFIL reescribe las credenciales y deja una copia de la base de datos antes de hacerlo.
+- Genere una `ENCRYPTION_KEY` propia y única por despliegue; no use valores de ejemplo. Los respaldos de la base de datos incluyen la sal: guárdelos con el mismo cuidado que la clave.
 - Use cuentas de **solo lectura** (perfil Auditor) y autorice únicamente la IP del servidor de ALFIL.
 - No registre claves en repositorios, capturas ni tickets.
 - Trate el token del MCP como una credencial: permite leer (solo lectura) las conexiones habilitadas. Revóquelo si se expone y habilite en MCP solo las conexiones necesarias.

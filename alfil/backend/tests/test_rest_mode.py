@@ -122,13 +122,18 @@ def test_bloque_system_del_reporte_lee_hostname_y_zona_horaria_v23():
     assert rep["system"]["hostname"] == "fw01" and rep["system"]["timezone"] == "Europe/London"
 
 
-def test_advierte_si_la_clave_de_cifrado_es_insegura(caplog):
+def test_clave_insegura_avisa_en_debug_y_rechaza_el_arranque_sin_debug(caplog, monkeypatch):
     import logging
     from app import main
+    monkeypatch.setattr(main, "migrate_credentials", lambda *a, **k: {})
+    insegura = "your-encryption-key-here-change-in-production"
+    monkeypatch.setattr(main, "settings", main.settings.model_copy(update={"encryption_key": insegura, "debug": True}))
     with caplog.at_level(logging.CRITICAL):
-        main.settings = main.settings.model_copy(update={"encryption_key": "your-encryption-key-here-change-in-production"})
-        main._warn_insecure_encryption_key()
+        main._secure_stored_credentials()
     assert any("ENCRYPTION_KEY" in r.message for r in caplog.records)
+    monkeypatch.setattr(main, "settings", main.settings.model_copy(update={"debug": False}))
+    with pytest.raises(RuntimeError):
+        main._secure_stored_credentials()
 
 
 def test_numeracion_de_auditorias_es_por_conexion(tmp_path, monkeypatch):

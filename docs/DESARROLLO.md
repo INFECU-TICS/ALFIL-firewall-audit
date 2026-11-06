@@ -45,7 +45,7 @@ docker compose up --build
 
 | Variable | Notas |
 |---|---|
-| `ENCRYPTION_KEY` | Generar: `python -c "import secrets; print(secrets.token_hex(32))"`. Nunca rotar — rompe todas las contraseñas guardadas. |
+| `ENCRYPTION_KEY` | Generar: `python -c "import secrets; print(secrets.token_hex(32))"`. Obligatoria (≥ 32 car.) con `DEBUG=false`. Para rotar: nueva en `ENCRYPTION_KEY` y la anterior en `ENCRYPTION_KEY_OLD` durante un arranque; las credenciales se reescriben solas (con copia previa de la BD). Cifrado v2: sal aleatoria por instalación en la tabla `app_settings`. |
 | `DOMAIN` | Hostname público, ej. `alfil.example.com` |
 | `DEBUG` | Opcional, default `false` |
 
@@ -118,7 +118,7 @@ docker compose up --build
 
 ## Sophos Firewall v23 – REST API y servidor MCP
 
-Línea de trabajo nueva (challenge): `alfil-mcp/`, servidor MCP sobre la REST API v1 de SFOS v23 (`/api/firewall-config/v1`, Bearer token). Fase 1 solo lectura; fase 2 escritura con confirmación. No asumir rutas de endpoints: validarlas contra la spec OpenAPI del firewall v23 de pruebas.
+Línea de trabajo `alfil-mcp/`, servidor MCP sobre la REST API v1 de SFOS v23 (`/api/firewall-config/v1`, Bearer token). Fase 1 solo lectura; fase 2 escritura con confirmación. No asumir rutas de endpoints: validarlas contra la spec OpenAPI del firewall v23 de pruebas.
 
 **Estado y pendientes para retomar: `docs/ESTADO_Y_PENDIENTES.md`** (leer primero). Links oficiales y notas verificadas: `docs/REFERENCES.md`. Spec oficial extraída del firewall: `alfil-mcp/spec/openapi.yaml`; inventario de endpoints: `docs/API_V23_INVENTORY.md` (regenerar con `alfil-mcp/scripts/gen_inventory.py`). La API key de pruebas vive en `.env` (`API_KEY`, ignorado por git); el firewall de pruebas se indica con `SFOS_HOST` (puerto 4444). Nunca imprimir ni commitear la key.
 

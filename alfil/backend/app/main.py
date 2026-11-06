@@ -7,6 +7,8 @@ from app.config import get_settings
 from app.database import Base, engine, SessionLocal, ensure_schema
 from app.models.audit_report import AuditReport  # noqa: ensure table is registered
 from app.models.mcp_access import McpAccess  # noqa: ensure table is registered
+from app.models.app_setting import AppSetting  # noqa: ensure table is registered
+from app.services.crypto import migrate_credentials, validate_encryption_key
 from app.routers import connections, audit, mcp
 
 Base.metadata.create_all(bind=engine)
@@ -36,14 +38,14 @@ app.include_router(mcp.router, prefix=settings.api_v1_prefix)
 
 
 @app.on_event("startup")
-def _warn_insecure_encryption_key():
-    """La clave por defecto es pública (está en el código): las credenciales guardadas serían descifrables."""
-    key = settings.encryption_key
-    if key.startswith("your-encryption-key") or len(key) < 32:
-        logger.critical(
-            "ENCRYPTION_KEY ausente, de ejemplo o demasiado corta: las credenciales guardadas NO están protegidas. "
-            "Defina una clave propia (python -c \"import secrets; print(secrets.token_hex(32))\") antes de guardar conexiones."
-        )
+def _secure_stored_credentials():
+    """Exige clave propia fuera de desarrollo y reescribe las credenciales con la sal de la instalación."""
+    validate_encryption_key(settings.encryption_key, settings.debug)
+    db = SessionLocal()
+    try:
+        migrate_credentials(db, settings.encryption_key, settings.encryption_key_old or None, settings.database_url)
+    finally:
+        db.close()
 
 
 @app.on_event("startup")

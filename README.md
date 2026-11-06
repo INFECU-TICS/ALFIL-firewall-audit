@@ -43,7 +43,7 @@ Frontend: `http://localhost:80` · API docs: `http://localhost:8000/docs`
 
 | Variable | Descripción |
 |---|---|
-| `ENCRYPTION_KEY` | Clave para cifrar contraseñas. Generar con: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ENCRYPTION_KEY` | Clave para cifrar contraseñas (≥ 32 caracteres; con `DEBUG=false` el backend no arranca si falta o es de ejemplo). Generar con: `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `DOMAIN` | Hostname público para Traefik (ej. `alfil.empresa.com`) |
 | `CORS_ORIGINS` | Lista JSON de orígenes permitidos (ej. `["https://alfil.empresa.com"]`) |
 | `DEBUG` | `false` en producción (default) |
