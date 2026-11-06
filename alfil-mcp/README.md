@@ -18,6 +18,8 @@ Servidor MCP **de solo lectura** para Sophos Firewall v23 sobre su REST API v1 (
 | `audit_firewall()` | Hallazgos de reglas (Any→Any, sin log, duplicadas, deshabilitadas) y score 0–100 |
 | `get_topology(format)` | Topología de configuración (zonas, interfaces/VLAN, rutas, VPN, advertencias). Solo con conexiones de ALFIL |
 | `explain_rule_match(source_ip, destination_ip, protocol, destination_port)` | Regla que decide un flujo (zonas, redes, servicios, exclusiones), reglas anteriores «posibles» y porqué no coinciden las del par de zonas |
+| `trace_object_usage(name, kind)` | Dónde se usa un objeto: reglas, NAT, grupos y VPN, directo e indirecto (con la cadena de grupos) |
+| `find_unused_objects(kind, limit)` | Hosts, grupos y servicios sin uso (candidatos a limpieza; revisar antes de borrar) |
 | `explain_path(source_ip, destination_ip)` | Ruta de un flujo según la configuración: zonas, interfaz, ruta/VPN, problemas y reglas candidatas por zona. Solo con conexiones de ALFIL |
 
 Resource: `firewall://summary`. Próximo: hardening de admin (MFA, acceso WAN), objetos sin uso, `explain_rule_match`.

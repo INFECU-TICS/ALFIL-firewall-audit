@@ -31,6 +31,7 @@ from .alfil import AlfilError, AlfilHub, heartbeat_loop
 from .analysis import rules as rule_analysis
 from .analysis import match as match_analysis
 from .analysis import topology as topo_analysis
+from .analysis import usage as usage_analysis
 from .client import SophosApiError, SophosClient, search_catalog
 from .config import AlfilSettings, ConfigError, Settings
 
@@ -156,7 +157,7 @@ mcp = MCPServer(
         "Use list_connections para ver los firewalls disponibles y el parámetro `connection` para elegir uno. "
         "list_api_endpoints y api_get leen cualquier ruta GET; audit_firewall devuelve score y hallazgos de reglas; "
         "get_topology y explain_path (solo con conexiones de ALFIL) describen la red y explican la ruta de un flujo; "
-        "explain_rule_match indica qué regla decide un flujo. "
+        "explain_rule_match indica qué regla decide un flujo; trace_object_usage y find_unused_objects muestran dónde se usan los objetos. "
         "Ninguna herramienta modifica el firewall."
     ),
 )
@@ -314,6 +315,43 @@ async def explain_rule_match(source_ip: str, destination_ip: str, protocol: str 
     if zones_note:
         result["findings"].insert(0, {"severity": "info", "message": zones_note})
     return {"connection": label, **result}
+
+
+async def _usage_index(connection: str | None) -> tuple[usage_analysis.UsageIndex, str]:
+    client, label = await resolve_client(connection)
+    return usage_analysis.UsageIndex(
+        rules=await client.get_all("/firewall/rules/ipv4"), nat_rules=await client.get_all("/nat/rules/ipv4"),
+        host_groups=await client.get_all("/network/address-groups/ipv4"), service_groups=await client.get_all("/network/service-groups"),
+        vpn_connections=await client.get_all("/ipsec-vpn/site-to-site/connections/ipv4"),
+        hosts=await client.get_all("/network/addresses/ipv4"), services=await client.get_all("/network/services")), label
+
+
+@read_tool
+async def trace_object_usage(name: str, kind: str | None = None, connection: str | None = None) -> dict[str, Any]:
+    """¿Dónde se usa este objeto? Busca en reglas de firewall, reglas NAT, grupos y VPN, de forma directa y a través de
+    grupos (con la cadena). Útil antes de borrar o cambiar un host, grupo, servicio, zona o interfaz.
+
+    `kind` (opcional) separa nombres repetidos: host, host_group, service, service_group, zone, interface, fqdn_host…
+    No consulta otras funciones del equipo (SD-WAN, políticas web, usuarios). Solo lectura.
+    """
+    index, label = await _usage_index(connection)
+    try:
+        return {"connection": label, **index.trace(name, kind)}
+    except LookupError as exc:
+        raise SophosApiError(str(exc)) from exc
+
+
+@read_tool
+async def find_unused_objects(kind: str | None = None, limit: int = 100, connection: str | None = None) -> dict[str, Any]:
+    """Objetos definidos que no usa ninguna regla de firewall, NAT, VPN ni grupo usado: candidatos a limpieza.
+
+    `kind`: host, host_group, service o service_group (por defecto todos). Excluye los objetos internos del sistema, pero
+    puede incluir servicios predefinidos: revise antes de borrar. Solo lectura.
+    """
+    if kind and kind not in usage_analysis.DEFINED_KINDS:
+        raise SophosApiError(f"`kind` debe ser uno de: {', '.join(usage_analysis.DEFINED_KINDS)}.")
+    index, label = await _usage_index(connection)
+    return {"connection": label, **index.unused(kind, min(max(limit, 1), 500))}
 
 
 @mcp.resource("firewall://summary")
