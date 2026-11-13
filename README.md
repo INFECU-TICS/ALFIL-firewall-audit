@@ -2,7 +2,9 @@
 
 Auditoría de salud y diagnóstico para **Sophos Firewall**. ALFIL lee la configuración del equipo, detecta problemas de seguridad, calcula un puntaje de salud, genera reportes (PDF, Excel, ZIP), dibuja la topología de red y, con su **servidor MCP**, deja que un asistente de IA consulte el firewall, explique por qué pasa o no un tráfico y —solo si usted lo habilita— proponga cambios que una persona aprueba.
 
-> Video de demostración (~3 min): [`docs/demo/alfil-demo.mp4`](docs/demo/alfil-demo.mp4); cómo regrabarlo en [`docs/demo/README.md`](docs/demo/README.md).
+[![Demostración de ALFIL (vista previa acelerada; clic para el video completo)](docs/demo/alfil-demo-preview.gif)](docs/demo/alfil-demo.mp4)
+
+*Vista previa acelerada. [Video completo (~3 min, MP4)](docs/demo/alfil-demo.mp4) · cómo regrabarlo: [`docs/demo/README.md`](docs/demo/README.md).*
 
 ## Qué puede hacer
 
