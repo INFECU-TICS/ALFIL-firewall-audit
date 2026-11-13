@@ -21,7 +21,7 @@ Consulta: `source_ip`, `destination_ip`, `protocol` (tcp/udp/icmp…), `destinat
 - [x] Entradas inválidas (IP, puerto, protocolo) → error legible. _(test_entradas_invalidas y test_tool_entradas_invalidas_dan_error_legible)_
 - [x] Herramienta MCP: zonas deducidas de la topología con conexión de ALFIL; zonas manuales; sin zonas evalúa sin filtrar por zona y lo avisa. _(test_tool_deduce_zonas_de_la_topologia…, test_tool_zonas_manuales_y_sin_topologia, test_sin_zonas_se_avisa)_
 - [x] Solo lectura: solo se piden rutas GET del catálogo. _(test_tool_deduce_zonas…: solo GET y todas las rutas están en el catálogo)_
-- [~] En vivo contra el firewall de laboratorio (falta el host del laboratorio en el entorno).
+- [x] En vivo contra el firewall de laboratorio (2026-11-13): reglas con grupo de hosts, red, servicio TCP 8443 y zonas; coincide, no coincide por red de origen (`red_origen: no coincide`), no coincide por servicio y descarte implícito (puerto 22 desde WAN). Formas reales confirmadas: `sourceNetworks.ipv4Groups`, `servicesOrGroups.services`, zonas `{zones:[{name}]}`.
 
 ## C2. `trace_object_usage` y `find_unused_objects` (MCP, Troubleshoot / Optimizer)
 
@@ -38,4 +38,4 @@ Consulta: `source_ip`, `destination_ip`, `protocol` (tcp/udp/icmp…), `destinat
 - [x] `find_unused_objects`: lista solo lo definido sin referencias; excluye objetos internos del sistema; un host usado solo por un grupo sin uso se reporta como «uso solo vía grupo sin uso». _(test_objetos_sin_uso)_
 - [x] Filtro por tipo y límite de resultados. _(test_filtro_por_tipo_y_limite)_
 - [x] Solo lectura: rutas GET del catálogo. _(test_tools_trace_y_unused_solo_leen_rutas_del_catalogo)_
-- [~] En vivo contra el laboratorio (falta el host del laboratorio en el entorno).
+- [x] En vivo contra el laboratorio (2026-11-13): uso directo de un host por grupo (`sourceNetworks.ipv4Groups`) y de un servicio, objeto sin uso detectado, hosts del sistema solo vía grupo sin uso; objetos de prueba borrados al final.
