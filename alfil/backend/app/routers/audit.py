@@ -10,6 +10,8 @@ from app.models.audit_report import AuditReport
 from app.models.connection import ConnectionConfig
 from app.services.audit_service import generate_audit_report
 from app.services.crypto import get_encryption_manager
+from app.services.audit_diff import diff_reports
+from app.services.topology_insights import findings_by_node, zone_matrix
 from app.services.export_service import generate_excel, generate_pdf, generate_zip
 from app.services.firewall_client import client_for_connection
 
@@ -138,10 +140,38 @@ def get_audit_topology(audit_id: int, db: Session = Depends(get_db)):
     audit = _get_audit_or_404(audit_id, db)
     if audit.status != "completed":
         raise HTTPException(status_code=409, detail="La auditoría aún no termina")
-    topo = (audit.report or {}).get("topology")
+    report = audit.report or {}
+    topo = report.get("topology")
     if not topo:
         raise HTTPException(status_code=404, detail="Esta auditoría no incluye topología (fue ejecutada antes de esta función). Ejecute una auditoría nueva.")
-    return topo
+    rules = report.get("sections", {}).get("firewall_rules", {}).get("data", [])
+    return {**topo, "findings": findings_by_node(report.get("issues", []), rules, topo.get("nodes", []), (topo.get("meta") or {}).get("warnings"))}
+
+
+@router.get("/reports/{audit_id}/zone-matrix")
+def get_zone_matrix(audit_id: int, db: Session = Depends(get_db)):
+    """Matriz zona→zona de las reglas habilitadas (mapa de cobertura, sin evaluar orden)."""
+    audit = _get_audit_or_404(audit_id, db)
+    if audit.status != "completed":
+        raise HTTPException(status_code=409, detail="La auditoría aún no termina")
+    sections = (audit.report or {}).get("sections", {})
+    rules = sections.get("firewall_rules", {}).get("data", [])
+    zones = [z.get("name") for z in sections.get("zones", {}).get("data", []) if isinstance(z, dict)]
+    return zone_matrix(rules, zones)
+
+
+@router.get("/reports/{audit_id}/diff")
+def get_audit_diff(audit_id: int, base: int, db: Session = Depends(get_db)):
+    """Compara esta auditoría con otra anterior de la misma conexión (`base`)."""
+    new, old = _get_audit_or_404(audit_id, db), _get_audit_or_404(base, db)
+    if new.connection_id != old.connection_id:
+        raise HTTPException(status_code=400, detail="Solo se pueden comparar auditorías de la misma conexión")
+    if new.id == old.id:
+        raise HTTPException(status_code=400, detail="Elija una auditoría distinta como base")
+    if new.status != "completed" or old.status != "completed":
+        raise HTTPException(status_code=409, detail="Ambas auditorías deben estar completadas")
+    return {"base_id": old.id, "id": new.id, "base_at": old.created_at.isoformat() if old.created_at else None,
+            "at": new.created_at.isoformat() if new.created_at else None, **diff_reports(old.report or {}, new.report or {})}
 
 
 @router.delete("/reports/{audit_id}", status_code=204)

@@ -6,10 +6,11 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { toPng } from "html-to-image";
-import { ArrowLeft, Copy, Download, Loader2, AlertTriangle, Info, Check } from "lucide-react";
+import { ArrowLeft, Copy, Download, Loader2, AlertTriangle, Info, Check, Grid3x3 } from "lucide-react";
 import { api } from "../api";
 import { filterTopology, layoutTopology, toMermaid, ROLE_COLORS } from "../topology/layout";
-import { nodeTypes } from "../topology/TopoNodes";
+import { nodeTypes, SEV_COLOR } from "../topology/TopoNodes";
+import ZoneMatrix from "../topology/ZoneMatrix";
 
 const LEGEND = [["lan", "LAN"], ["wan", "WAN"], ["dmz", "DMZ"], ["vpn", "VPN"], ["wifi", "WiFi"], ["other", "Otras zonas"]];
 const TYPE_LABEL = {
@@ -23,6 +24,25 @@ function Toggle({ checked, onChange, children }) {
       <input type="checkbox" className="rounded" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {children}
     </label>
+  );
+}
+
+const SEV_LABEL = { critical: "Crítico", warning: "Advertencia", info: "Informativo" };
+
+function Findings({ items }) {
+  if (!items?.length) return null;
+  return (
+    <section className="card p-3">
+      <p className="text-xs font-semibold text-gray-700 mb-2">Hallazgos de este elemento ({items.length})</p>
+      <ul className="space-y-1.5">
+        {items.map((f, i) => (
+          <li key={i} className="text-xs rounded px-2 py-1.5 border-l-4 bg-gray-50" style={{ borderColor: SEV_COLOR[f.severity] }}>
+            <span className="font-semibold" style={{ color: SEV_COLOR[f.severity] }}>{SEV_LABEL[f.severity] || f.severity}</span> · {f.title}
+            {f.recommendation && <span className="block text-gray-500 mt-0.5">{f.recommendation}</span>}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -53,7 +73,8 @@ function Viewer() {
   const [topo, setTopo] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
-  const [opts, setOpts] = useState({ showUnconfigured: false, showEmptyZones: false, edgeLabels: true });
+  const [opts, setOpts] = useState({ showUnconfigured: false, showEmptyZones: false, edgeLabels: true, byFindings: true });
+  const [showMatrix, setShowMatrix] = useState(false);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -84,7 +105,10 @@ function Viewer() {
   }, [visible]);
 
   const shownEdges = useMemo(() => edges.map((e) => ({ ...e, label: opts.edgeLabels ? e.data?.label || undefined : undefined })), [edges, opts.edgeLabels]);
-  const selected = nodes.find((n) => n.id === selectedId);
+  const findings = topo?.findings || {};
+  const shownNodes = useMemo(() => nodes.map((n) => ({ ...n, data: { ...n.data, findings: opts.byFindings ? findings[n.id] : undefined } })), [nodes, findings, opts.byFindings]);
+  const selected = shownNodes.find((n) => n.id === selectedId);
+  const totalFindings = Object.values(findings).reduce((a, l) => a + l.length, 0);
 
   const exportPng = useCallback(async () => {
     const el = document.querySelector(".react-flow__viewport");
@@ -126,7 +150,11 @@ function Viewer() {
         <div className="flex-1" />
         <Toggle checked={opts.showUnconfigured} onChange={(v) => setOpts((o) => ({ ...o, showUnconfigured: v }))}>Puertos sin configurar</Toggle>
         <Toggle checked={opts.showEmptyZones} onChange={(v) => setOpts((o) => ({ ...o, showEmptyZones: v }))}>Zonas vacías</Toggle>
+        <Toggle checked={opts.byFindings} onChange={(v) => setOpts((o) => ({ ...o, byFindings: v }))}>Hallazgos{totalFindings ? ` (${totalFindings})` : ""}</Toggle>
         <Toggle checked={opts.edgeLabels} onChange={(v) => setOpts((o) => ({ ...o, edgeLabels: v }))}>Etiquetas</Toggle>
+        <button className={`btn-secondary flex items-center gap-1 ${showMatrix ? "ring-2 ring-blue-400" : ""}`} onClick={() => setShowMatrix((v) => !v)}>
+          <Grid3x3 className="w-4 h-4" /> Matriz de zonas
+        </button>
         <button className="btn-secondary flex items-center gap-1" onClick={copyMermaid} disabled={!visible}>
           {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />} Mermaid
         </button>
@@ -141,7 +169,7 @@ function Viewer() {
             </div>
           )}
           <ReactFlow
-            nodes={nodes} edges={shownEdges} nodeTypes={nodeTypes}
+            nodes={shownNodes} edges={shownEdges} nodeTypes={nodeTypes}
             onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
             onNodeClick={(_, n) => setSelectedId(n.id)} onPaneClick={() => setSelectedId(null)}
             nodesConnectable={false} minZoom={0.1} maxZoom={2} fitView proOptions={{ hideAttribution: true }}
@@ -154,6 +182,7 @@ function Viewer() {
 
         <aside className="w-72 flex-shrink-0 space-y-3 overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)", minHeight: 460 }}>
           <section className="card p-3"><Details node={selected} /></section>
+          <Findings items={selected ? findings[selected.id] : null} />
           {warnings.length > 0 && (
             <section className="card p-3">
               <p className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5 text-yellow-600" /> Advertencias de topología ({warnings.length})</p>
@@ -174,6 +203,7 @@ function Viewer() {
                 </span>
               ))}
             </div>
+            {opts.byFindings && <p className="text-[11px] text-gray-500 mt-2">El círculo y el halo indican hallazgos de la auditoría: <span style={{ color: SEV_COLOR.critical }}>crítico</span>, <span style={{ color: SEV_COLOR.warning }}>advertencia</span>, <span style={{ color: SEV_COLOR.info }}>informativo</span> (color = el más grave).</p>}
             <p className="text-[11px] text-gray-500 mt-2">Línea punteada: túnel inactivo o salto inalcanzable. Las VLAN se muestran como interfaces.</p>
           </section>
           {(topo?.meta?.notes || []).map((n, i) => (
@@ -181,6 +211,7 @@ function Viewer() {
           ))}
         </aside>
       </div>
+      {showMatrix && <ZoneMatrix auditId={auditId} />}
     </div>
   );
 }

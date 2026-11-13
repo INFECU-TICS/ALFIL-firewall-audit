@@ -94,6 +94,78 @@ function StatusBadge({ status }) {
 // ---------------------------------------------------------------------------
 // Página principal
 // ---------------------------------------------------------------------------
+const SEV_LABEL = { critical: "Crítico", warning: "Advertencia", info: "Informativo" };
+const SEV_CLS = { critical: "text-red-700", warning: "text-yellow-700", info: "text-blue-700" };
+
+function DiffList({ title, items, empty }) {
+  return (
+    <div className="mb-3">
+      <p className="text-xs font-semibold text-gray-700 mb-1">{title} ({items.length})</p>
+      {items.length === 0 ? <p className="text-xs text-gray-400">{empty}</p> : (
+        <ul className="space-y-1">{items.map((i, k) => (
+          <li key={k} className="text-xs"><span className={`font-semibold ${SEV_CLS[i.severity]}`}>{SEV_LABEL[i.severity] || i.severity}</span> · {i.title}{i.was && <span className="text-gray-400"> (antes: {SEV_LABEL[i.was] || i.was})</span>}</li>
+        ))}</ul>
+      )}
+    </div>
+  );
+}
+
+function DiffSection({ auditId, audits }) {
+  const options = audits.filter((a) => a.status === "completed" && a.id !== auditId);
+  const [base, setBase] = useState("");
+  const [diff, setDiff] = useState(null);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setDiff(null); setErr(""); setBase(""); }, [auditId]);
+  const run = async (v) => {
+    setBase(v); setDiff(null); setErr("");
+    if (!v) return;
+    setBusy(true);
+    try { setDiff(await api.getAuditDiff(auditId, v)); } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+  const d = diff;
+  const delta = d?.score?.delta;
+  return (
+    <Section icon={Clock} title="Comparar con otra auditoría" count={options.length ? undefined : "sin otra auditoría"}>
+      {options.length === 0 ? <p className="text-xs text-gray-500">Ejecute otra auditoría de esta conexión para ver qué cambió.</p> : (
+        <>
+          <label className="text-xs text-gray-600 mr-2">Línea base:</label>
+          <select className="input text-xs w-auto inline-block" value={base} onChange={(e) => run(e.target.value)}>
+            <option value="">Elija una auditoría…</option>
+            {options.map((a) => <option key={a.id} value={a.id}>#{a.seq ?? a.id} · {fmtDate(a.created_at)} · puntaje {a.summary?.score ?? "—"}</option>)}
+          </select>
+          {busy && <Loader2 className="w-4 h-4 animate-spin inline-block ml-2 text-gray-400" />}
+          {err && <p className="text-xs text-red-600 mt-2">{err}</p>}
+          {d && (
+            <div className="mt-4">
+              <p className="text-sm text-gray-800 mb-3">
+                Puntaje: <b>{d.score.before ?? "—"}</b> → <b>{d.score.after ?? "—"}</b>{delta != null && <span className={delta >= 0 ? "text-green-700" : "text-red-700"}> ({delta >= 0 ? "+" : ""}{delta})</span>}
+                {" · "}{d.counts.new} nuevo(s), {d.counts.resolved} resuelto(s), {d.counts.persisting} persistente(s)
+              </p>
+              <DiffList title="Hallazgos nuevos" items={d.issues.new} empty="Ninguno." />
+              <DiffList title="Hallazgos resueltos" items={d.issues.resolved} empty="Ninguno." />
+              {d.issues.severity_changed.length > 0 && <DiffList title="Cambiaron de severidad" items={d.issues.severity_changed} empty="" />}
+              <div className="mb-3">
+                <p className="text-xs font-semibold text-gray-700 mb-1">Reglas de firewall</p>
+                <ul className="text-xs text-gray-700 space-y-0.5">
+                  <li>Agregadas: {d.rules.added.join(", ") || "ninguna"}</li>
+                  <li>Eliminadas: {d.rules.removed.join(", ") || "ninguna"}</li>
+                  <li>Modificadas: {d.rules.changed.length ? d.rules.changed.map((r) => `${r.name} (${Object.keys(r.changes).join(", ")})`).join("; ") : "ninguna"}</li>
+                  {d.rules.reordered && <li className="text-amber-700">El orden de las reglas cambió.</li>}
+                </ul>
+              </div>
+              {(d.topology.added.length > 0 || d.topology.removed.length > 0) && (
+                <p className="text-xs text-gray-700 mb-2">Topología: +{d.topology.added.join(", ") || "—"} / −{d.topology.removed.join(", ") || "—"}</p>
+              )}
+              {d.notes.map((n, i) => <p key={i} className="text-[11px] text-gray-400">{n}</p>)}
+            </div>
+          )}
+        </>
+      )}
+    </Section>
+  );
+}
+
 export default function AuditPage() {
   const { id: connectionId } = useParams();
   const navigate = useNavigate();
@@ -370,6 +442,8 @@ export default function AuditPage() {
             </div>
             <p className="text-xs text-gray-400 mt-3">Auditoría: {fmtDate(report.generated_at)}</p>
           </div>
+
+          <DiffSection auditId={selectedAuditId} audits={audits} />
 
           {/* Hallazgos */}
           <Section icon={FileWarning} title="Todos los hallazgos" count={report.issues?.length} defaultOpen={report.summary.critical > 0}>

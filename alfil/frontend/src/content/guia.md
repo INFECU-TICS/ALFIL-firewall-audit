@@ -1,6 +1,6 @@
 # Guía de uso de ALFIL
 
-> Última actualización: 2026-11-13 (MCP fase 2: cambios con confirmación). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
+> Última actualización: 2026-11-13 (topología con hallazgos, matriz de zonas y comparación de auditorías). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
 
 ## 1. Qué es ALFIL
 
@@ -270,6 +270,11 @@ Reglas del juego:
 - Todo queda en el **registro de auditoría** (propuestas, rechazos, aplicaciones, con la carga enviada y la copia previa), visible en el panel del MCP.
 - Recomendación: pida siempre a una persona que revise el resumen antes de que el agente aplique, y compruebe el efecto con `explain_rule_match`.
 
+### Topología con hallazgos, matriz de zonas y comparación
+- **Hallazgos sobre el grafo:** cada nodo muestra un círculo con el número de hallazgos y un halo del color del más grave (crítico, advertencia, informativo). Los de administración, notificaciones y objetos van al firewall; los de acceso desde WAN y los de reglas con zonas concretas, a su zona; las advertencias de topología, a su interfaz. Al elegir un nodo se listan con su recomendación. Se puede apagar con el interruptor «Hallazgos».
+- **Matriz de zonas:** botón «Matriz de zonas». Por cada par origen→destino cuenta las reglas habilitadas que permiten (✔) o bloquean (✖); resalta en rojo las celdas con una regla accept sin restricción de redes ni servicios. «Any» se expande a todas las zonas. Es un **mapa de cobertura**: no evalúa el orden ni el sombreado entre reglas, y una celda vacía significa descarte implícito.
+- **Comparar auditorías:** en el reporte, sección «Comparar con otra auditoría» (de la misma conexión). Muestra el cambio de puntaje, hallazgos nuevos, resueltos y persistentes, reglas agregadas, eliminadas, modificadas o reordenadas, y nodos de topología que aparecen o desaparecen. Compara la configuración recolectada, no el estado en vivo entre ambas.
+
 ## 6. Limitaciones actuales de ALFIL
 - En modo REST la auditoría recolecta casi todo lo que ofrece la API v1 (reglas, NAT, objetos y grupos, servicios, interfaces/VLAN/alias/LAG, rutas, VPN, usuarios, horarios, inspección TLS, filtrado web y de aplicaciones, DNS, respaldo, políticas de acceso). **No disponible**: NTP y zona horaria, estado y versión del sistema, certificado de administración, grupos de reglas de firewall, rutas y perfiles SD-WAN (la API v1 no los expone o su formato no está verificado). Esas secciones salen como «No disponible aún en modo REST» y el auditor no afirma nada sobre ellas. Los detalles de las políticas web y de aplicaciones se guardan completos en los exportes (JSON).
 - En modo XML sobre v23 la entidad de administradores no existe, por lo que el MFA de administradores no se puede evaluar.
@@ -283,7 +288,7 @@ Reglas del juego:
 
 **Web**
 - Modo REST: rutas y perfiles SD-WAN, y mostrar la verificación de políticas del firewall (Health Check) también en el reporte de la web (hoy solo la ofrece el MCP).
-- Topología: colorear el grafo con los hallazgos de la auditoría, servidores publicados (DNAT), rutas SD-WAN, matriz zona→zona con las reglas permitidas, mapa multi-sitio (unir firewalls por sus VPN) y comparación entre auditorías.
+- Topología: servidores publicados (DNAT), rutas SD-WAN, mapa multi-sitio (unir firewalls por sus VPN) y detecciones de topología dentro del puntaje.
 - Detecciones basadas en topología (salto inalcanzable, subredes solapadas) integradas en los hallazgos y el puntaje.
 - Gráficos de resultados (tendencia del puntaje).
 - Autenticación de usuarios de la aplicación.

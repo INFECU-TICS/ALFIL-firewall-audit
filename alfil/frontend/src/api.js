@@ -20,6 +20,8 @@ export const api = {
   mcpRevokeToken:      (id)       => request("DELETE", `/mcp/tokens/${id}`),
   mcpAuditLog:         (limit = 20) => request("GET",  `/mcp/audit-log?limit=${limit}`),
   getTopology:         (auditId)  => request("GET",    `/audit/reports/${auditId}/topology`),
+  getZoneMatrix:       (auditId)  => request("GET",    `/audit/reports/${auditId}/zone-matrix`),
+  getAuditDiff:        (auditId, base) => request("GET", `/audit/reports/${auditId}/diff?base=${base}`),
   getConnection:       (id)       => request("GET",    `/connections/${id}`),
   createConnection:    (data)     => request("POST",   "/connections", data),
   updateConnection:    (id, data) => request("PUT",    `/connections/${id}`, data),
