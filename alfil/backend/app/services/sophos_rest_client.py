@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 BASE_PATH = "/api/firewall-config/v1"
 PAGE_SIZE = 100  # máximo documentado en la spec OpenAPI
+FALLBACK_PAGE_SIZE = 50  # algunas rutas (p. ej. /application/policies) solo admiten 50 y responden 400 «Invalid page size»
 UNSUPPORTED = {"success": False, "error": "No disponible aún en modo REST", "unsupported": True}
 
 # Claves que produce collect_audit_data del cliente XML; las no implementadas en REST se marcan como no disponibles.
@@ -69,7 +70,11 @@ class SophosRestClient:
         if resp.status_code == 404:
             raise RestError("Ruta no encontrada: ¿el firewall es v23 con la API REST habilitada?")
         if resp.status_code >= 400:
-            raise RestError(f"HTTP {resp.status_code}")
+            try:
+                detail = str(resp.json().get("message", ""))
+            except (ValueError, AttributeError):
+                detail = ""
+            raise RestError(f"HTTP {resp.status_code}: {detail}" if detail else f"HTTP {resp.status_code}")
         try:
             return resp.json()
         except ValueError:
@@ -77,12 +82,18 @@ class SophosRestClient:
 
     def _get_all(self, path: str, params: dict | None = None, max_items: int = 5000) -> list[dict]:
         items: list[dict] = []
-        page = 1
+        page, size = 1, PAGE_SIZE
         while len(items) < max_items:
-            data = self._get(path, {**(params or {}), "page": page, "pageSize": PAGE_SIZE})
+            try:
+                data = self._get(path, {**(params or {}), "page": page, "pageSize": size})
+            except RestError as e:
+                if page == 1 and size == PAGE_SIZE and "page size" in str(e).lower():
+                    size = FALLBACK_PAGE_SIZE  # la ruta admite un tamaño menor: reintentar desde el inicio
+                    continue
+                raise
             batch = data.get("items", []) if isinstance(data, dict) else []
             items.extend(batch)
-            if len(batch) < PAGE_SIZE:
+            if len(batch) < size:
                 break
             page += 1
         return items
@@ -177,6 +188,77 @@ class SophosRestClient:
             return {"success": False, "error": str(e)}
         return {"success": True, "data": nz.build_device_access(zones, acl)}
 
+    # -- Objetos, políticas y ajustes adicionales ---------------------------
+
+    def _simple(self, path: str, normalize: Callable[[dict], dict]) -> Dict[str, Any]:
+        return self._list(path, normalize)
+
+    def get_host_groups(self):
+        return self._simple("/network/address-groups/ipv4", nz.normalize_host_group)
+
+    def get_mac_hosts(self):
+        return self._simple("/network/addresses/mac", nz.normalize_mac_host)
+
+    def get_fqdn_hosts(self):
+        try:
+            hosts, groups = self._get_all("/network/addresses/fqdn"), self._get_all("/network/address-groups/fqdn")
+        except RestError as e:
+            return {"success": False, "error": str(e)}
+        data = nz.normalize_fqdn_hosts(hosts, groups)
+        return {"success": True, "data": data, "count": len(data)}
+
+    def get_fqdn_host_groups(self):
+        return self._simple("/network/address-groups/fqdn", nz.normalize_fqdn_group)
+
+    def get_schedules(self):
+        return self._simple("/administration/schedules", nz.normalize_schedule)
+
+    def get_auth_users(self):
+        return self._simple("/authentication/users", nz.normalize_user)
+
+    def get_ssl_tls_rules(self):
+        return self._simple("/tls-inspection/rules/ipv4", nz.normalize_tls_rule)
+
+    def get_decryption_profiles(self):
+        return self._simple("/tls-inspection/decryption-profiles", nz.normalize_decryption_profile)
+
+    def get_web_filter_policies(self):
+        return self._simple("/web/policies", nz.normalize_policy)
+
+    def get_web_filter_exceptions(self):
+        return self._simple("/web/exceptions", nz.normalize_named_object)
+
+    def get_app_filter_policies(self):
+        return self._simple("/application/policies", nz.normalize_policy)
+
+    def get_dns_request_routes(self):
+        return self._simple("/network/dns/request-routes", nz.normalize_named_object)
+
+    def get_access_time_policies(self):
+        return self._simple("/authentication/policies/access-times", nz.normalize_named_object)
+
+    def get_surfing_quota_policies(self):
+        return self._simple("/authentication/policies/surfing-quotas", nz.normalize_named_object)
+
+    def get_data_transfer_policies(self):
+        return self._simple("/authentication/policies/network-traffic-quotas", nz.normalize_named_object)
+
+    def _single(self, path: str, normalize: Callable[[dict], Any] = lambda d: d) -> Dict[str, Any]:
+        try:
+            data = self._get(path)
+        except RestError as e:
+            return {"success": False, "error": str(e)}
+        return {"success": True, "data": normalize(data if isinstance(data, dict) else {})}
+
+    def get_dns(self):
+        return self._single("/network/dns/settings")
+
+    def get_ssl_tls_settings(self):
+        return self._single("/tls-inspection/settings")
+
+    def get_backup_restore(self):
+        return self._single("/system/backup/settings", nz.normalize_backup)
+
     def collect_topology_data(self) -> Dict[str, Any]:
         """Solo lo que necesita `build_topology` (zonas, interfaces, rutas, VPN, hosts, nombre del equipo)."""
         implemented: Dict[str, Callable[[], Dict[str, Any]]] = {
@@ -208,6 +290,14 @@ class SophosRestClient:
             "_interface_bundle": self.get_interface_bundle,
             "hosts": self.get_hosts, "services": self.get_services, "service_groups": self.get_service_groups,
             "firewall_rules": self.get_firewall_rules, "nat_rules": self.get_nat_rules,
+            "host_groups": self.get_host_groups, "mac_hosts": self.get_mac_hosts, "fqdn_hosts": self.get_fqdn_hosts,
+            "fqdn_host_groups": self.get_fqdn_host_groups, "schedules": self.get_schedules, "auth_users": self.get_auth_users,
+            "ssl_tls_rules": self.get_ssl_tls_rules, "ssl_tls_settings": self.get_ssl_tls_settings,
+            "decryption_profiles": self.get_decryption_profiles, "web_filter_policies": self.get_web_filter_policies,
+            "web_filter_exceptions": self.get_web_filter_exceptions, "app_filter_policies": self.get_app_filter_policies,
+            "dns": self.get_dns, "dns_request_routes": self.get_dns_request_routes, "backup_restore": self.get_backup_restore,
+            "access_time_policies": self.get_access_time_policies, "surfing_quota_policies": self.get_surfing_quota_policies,
+            "data_transfer_policies": self.get_data_transfer_policies,
         }
         results: Dict[str, Any] = {k: dict(UNSUPPORTED) for k in ALL_KEYS}
         with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
@@ -235,9 +325,8 @@ class SophosRestClient:
             "services": "/network/services",
             "interface_info": "/network/interfaces/network-interfaces",
             "host_objects": "/network/addresses/ipv4",
+            "users": "/authentication/users",
         }
-        if query_type == "users":
-            return {"success": False, "error": "La consulta de usuarios aún no está disponible en modo REST", "raw_xml": ""}
         if query_type not in paths:
             return {"success": False, "error": f"Tipo desconocido: {query_type}", "raw_xml": ""}
         try:
@@ -245,6 +334,7 @@ class SophosRestClient:
             if query_type == "host_objects":
                 raw_mac = self._get_all("/network/addresses/mac")
                 raw_fqdn = self._get_all("/network/addresses/fqdn")
+                raw_fqdn_groups = self._get_all("/network/address-groups/fqdn")
         except RestError as e:
             return {"success": False, "error": str(e), "raw_xml": ""}
 
@@ -252,6 +342,8 @@ class SophosRestClient:
             data: Any = [nz.normalize_firewall_rule(r, i + 1) for i, r in enumerate(raw)]
         elif query_type == "services":
             data = [nz.normalize_named_object(x) for x in raw]
+        elif query_type == "users":
+            data = [nz.normalize_user(u) for u in raw]
         elif query_type == "interface_info":
             parts = nz.split_interfaces(raw)
             data = [{**i,
@@ -261,10 +353,8 @@ class SophosRestClient:
         else:
             data = {
                 "ip_hosts": [nz.normalize_host(h) for h in raw],
-                "mac_hosts": [{"name": h.get("name", ""), "description": h.get("description", ""), "type": h.get("type", ""),
-                               "mac_address": "", "mac_list": [], "raw": h} for h in raw_mac],
-                "fqdn_hosts": [{"name": h.get("name", ""), "description": h.get("description", ""),
-                                "fqdn": h.get("fqdn", ""), "groups": [], "raw": h} for h in raw_fqdn],
+                "mac_hosts": [nz.normalize_mac_host(h) for h in raw_mac],
+                "fqdn_hosts": nz.normalize_fqdn_hosts(raw_fqdn, raw_fqdn_groups),
             }
             raw = {"ip_hosts": raw, "mac_hosts": raw_mac, "fqdn_hosts": raw_fqdn}
         count = sum(len(v) for v in data.values()) if isinstance(data, dict) else len(data)

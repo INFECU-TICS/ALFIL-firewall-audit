@@ -55,15 +55,24 @@ def is_known_get_path(path: str) -> bool:
     return any(p.match(path) for p in _allowed_patterns())
 
 
+FALLBACK_PAGE_SIZE = 50  # algunas rutas (p. ej. /application/policies) solo admiten 50 y responden 400 «Invalid page size»
+
+
 async def get_all_pages(get: Any, path: str, params: dict[str, Any] | None = None, max_items: int = 1000) -> list[Any]:
     """Paginación común a todos los clientes: `get(path, params)` devuelve `{items, pages}`."""
     items: list[Any] = []
-    page = 1
+    page, size = 1, PAGE_SIZE
     while len(items) < max_items:
-        data = await get(path, {**(params or {}), "page": page, "pageSize": PAGE_SIZE})
+        try:
+            data = await get(path, {**(params or {}), "page": page, "pageSize": size})
+        except Exception as exc:
+            if page == 1 and size == PAGE_SIZE and "page size" in str(exc).lower():
+                size = FALLBACK_PAGE_SIZE  # la ruta admite un tamaño menor: reintentar desde el inicio
+                continue
+            raise
         batch = data.get("items", []) if isinstance(data, dict) else []
         items.extend(batch)
-        if len(batch) < PAGE_SIZE:
+        if len(batch) < size:
             break
         page += 1
     return items[:max_items]

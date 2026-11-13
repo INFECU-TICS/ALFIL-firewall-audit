@@ -1,6 +1,6 @@
 # Guía de uso de ALFIL
 
-> Última actualización: 2026-11-13 (herramientas audit_admin_access y audit_network_config). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
+> Última actualización: 2026-11-13 (colectores REST ampliados y consulta de usuarios en modo REST). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
 
 ## 1. Qué es ALFIL
 
@@ -243,7 +243,7 @@ Además indica la versión, el número de herramientas, el modo (solo lectura), 
 - La API es *Early Access*: las rutas pueden cambiar antes de la versión general.
 
 ## 6. Limitaciones actuales de ALFIL
-- En modo REST no están implementados todos los colectores (NTP y zona horaria, certificado de administración, VLAN, alias, LAG, grupos de reglas, VPN, SSL/TLS, filtrado web, rutas, SD-WAN, etc.) ni la consulta de usuarios.
+- En modo REST la auditoría recolecta casi todo lo que ofrece la API v1 (reglas, NAT, objetos y grupos, servicios, interfaces/VLAN/alias/LAG, rutas, VPN, usuarios, horarios, inspección TLS, filtrado web y de aplicaciones, DNS, respaldo, políticas de acceso). **No disponible**: NTP y zona horaria, estado y versión del sistema, certificado de administración, grupos de reglas de firewall, rutas y perfiles SD-WAN (la API v1 no los expone o su formato no está verificado). Esas secciones salen como «No disponible aún en modo REST» y el auditor no afirma nada sobre ellas. Los detalles de las políticas web y de aplicaciones se guardan completos en los exportes (JSON).
 - En modo XML sobre v23 la entidad de administradores no existe, por lo que el MFA de administradores no se puede evaluar.
 - La topología refleja la **configuración**, no el estado en vivo: no incluye rutas aprendidas por ruteo dinámico (OSPF/BGP/RIP, que la API REST v1 no expone) ni las rutas SD-WAN, y no muestra el estado real de los enlaces.
 - En modo XML, las redes protegidas de las conexiones VPN se leen con nombres de etiqueta por confirmar en un equipo con VPN; en modo REST sí están verificadas.
@@ -254,7 +254,7 @@ Además indica la versión, el número de herramientas, el modo (solo lectura), 
 ## 7. Próximas implementaciones
 
 **Web**
-- Completar los colectores del modo REST y la consulta de usuarios.
+- Modo REST: rutas y perfiles SD-WAN, y usar el resultado de la verificación de políticas del propio firewall (`/firewall-health-check/policies`).
 - Topología: colorear el grafo con los hallazgos de la auditoría, servidores publicados (DNAT), rutas SD-WAN, matriz zona→zona con las reglas permitidas, mapa multi-sitio (unir firewalls por sus VPN) y comparación entre auditorías.
 - Detecciones basadas en topología (salto inalcanzable, subredes solapadas) integradas en los hallazgos y el puntaje.
 - Gráficos de resultados (tendencia del puntaje).

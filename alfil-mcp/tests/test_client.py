@@ -60,3 +60,16 @@ async def test_html_404_and_json_error_normalized():
 
 def test_token_not_in_repr():
     assert "t0ken" not in repr(Settings(host="fw.test", token="t0ken"))
+
+
+async def test_paginacion_reintenta_con_50_si_la_ruta_no_admite_100():
+    from alfil_mcp.client import SophosApiError, get_all_pages
+    calls = []
+
+    async def get(path, params):
+        calls.append(params["pageSize"])
+        if params["pageSize"] > 50:
+            raise SophosApiError("HTTP 400 - invalidPageSizeParam: Invalid page size.")
+        return {"items": list(range(50 if params["page"] == 1 else 2))}
+
+    assert len(await get_all_pages(get, "/application/policies")) == 52 and calls == [100, 50, 50]

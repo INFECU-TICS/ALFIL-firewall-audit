@@ -377,3 +377,84 @@ def normalize_vpn_ipsec(conn: dict[str, Any]) -> dict[str, Any]:
         "remote_networks": _vpn_networks(protected.get("remoteNetworksIpv4")),
         "raw": conn,
     }
+
+
+# ---------------------------------------------------------------------------
+# Objetos, políticas y ajustes adicionales (mismo formato que los colectores XML)
+# ---------------------------------------------------------------------------
+
+def _names(items: Any) -> list[str]:
+    """[{"name": "a"}, "b"] -> ["a", "b"]; vacío o tipo inesperado -> []."""
+    if not isinstance(items, list):
+        return []
+    return [n for n in (ref_name(i) for i in items) if n]
+
+
+def normalize_host_group(group: dict[str, Any]) -> dict[str, Any]:
+    members = _names(group.get("ipv4Addresses")) + _names(group.get("ipv4Groups"))
+    return {"name": group.get("name", ""), "description": group.get("description", ""), "hosts": members, "raw": group}
+
+
+def normalize_mac_host(host: dict[str, Any]) -> dict[str, Any]:
+    macs = host.get("macAddresses") if isinstance(host.get("macAddresses"), list) else []
+    return {"name": host.get("name", ""), "description": host.get("description", ""), "type": host.get("type", ""),
+            "mac_address": host.get("macAddress", "") or "", "mac_list": [m if isinstance(m, str) else ref_name(m) for m in macs], "raw": host}
+
+
+def normalize_fqdn_hosts(hosts: list[dict[str, Any]], groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    member_of: dict[str, list[str]] = {}
+    for g in groups:
+        for n in _names(g.get("fqdns")):
+            member_of.setdefault(n, []).append(g.get("name", ""))
+    return [{"name": h.get("name", ""), "fqdn": h.get("fqdn", ""), "description": h.get("description", ""),
+             "groups": member_of.get(h.get("name", ""), []), "raw": h} for h in hosts]
+
+
+def normalize_fqdn_group(group: dict[str, Any]) -> dict[str, Any]:
+    return {"name": group.get("name", ""), "description": group.get("description", ""), "hosts": _names(group.get("fqdns")), "raw": group}
+
+
+def normalize_schedule(s: dict[str, Any]) -> dict[str, Any]:
+    slots = [t for t in (s.get("timeSlots") or []) if isinstance(t, dict)]
+    return {"name": s.get("name", ""), "description": s.get("description", ""), "type": s.get("type", ""),
+            "days": "; ".join(str(t.get("dayOfWeek", "")) for t in slots),
+            "start_time": slots[0].get("startTime", "") if slots else "", "stop_time": slots[0].get("endTime", "") if slots else "", "raw": s}
+
+
+def normalize_user(u: dict[str, Any]) -> dict[str, Any]:
+    """Usuarios de /authentication/users (incluye administradores; `user_type` lo distingue)."""
+    return {"username": u.get("name", ""), "name": u.get("displayName", "") or u.get("name", ""),
+            "user_type": "Administrator" if u.get("administrativeAccess") else "User", "group": ref_name(u.get("group")),
+            "status": "Active" if u.get("active") else "Inactive", "ssl_vpn_policy": "", "access_time_policy": "",
+            "surfing_quota": "", "login_restriction": "", "simultaneous_logins": "", "raw": u}
+
+
+def normalize_tls_rule(r: dict[str, Any]) -> dict[str, Any]:
+    return {"name": r.get("name", ""), "description": r.get("description", ""), "enabled": _enable(r.get("enabled")), "is_default": "",
+            "log_connections": _enable(r.get("logTraffic")), "source_zones": selector_names(r.get("sourceZones")),
+            "source_networks": selector_names(r.get("sourceNetworks")), "destination_zones": selector_names(r.get("destinationZones")),
+            "destination_networks": selector_names(r.get("destinationNetworks")), "services": selector_names(r.get("servicesOrGroups")),
+            "decrypt_action": r.get("action", ""), "decryption_profile": ref_name(r.get("decryptionProfile")), "raw": r}
+
+
+def normalize_decryption_profile(p: dict[str, Any]) -> dict[str, Any]:
+    return {"name": p.get("name", ""), "description": p.get("description", ""), "is_default": "",
+            "min_tls_version": p.get("minTlsVersion", ""), "max_tls_version": p.get("maxTlsVersion", ""),
+            "block_untrusted_issuer": _enable(p.get("blockUntrustedIssuer")), "block_invalid_date": _enable(p.get("blockExpiredCertificates")),
+            "block_self_signed": _enable(p.get("blockSelfSigned")), "block_revoked": _enable(p.get("blockRevoked")),
+            "ssl_v2_v3": p.get("sslV2V3Action", ""), "raw": p}
+
+
+def normalize_policy(p: dict[str, Any]) -> dict[str, Any]:
+    """Políticas web y de aplicaciones: nombre, descripción y acción por defecto (si existe); el detalle queda en `raw`."""
+    out = {"name": p.get("name", ""), "description": p.get("description", ""), "raw": p}
+    if "defaultAction" in p:
+        out["default_action"] = p.get("defaultAction", "")
+    return out
+
+
+def normalize_backup(settings: dict[str, Any]) -> dict[str, Any]:
+    sched = settings.get("schedule") or {}
+    return {"mode": settings.get("backupStorage", ""), "prefix": settings.get("backupPrefix", ""), "frequency": sched.get("frequency", ""),
+            "day": sched.get("day", sched.get("dayOfWeek", "")), "time": sched.get("time", ""), "email": settings.get("emailAddress", ""),
+            "ftp_server": "", "ftp_path": "", "ftp_user": "", "raw": settings}
