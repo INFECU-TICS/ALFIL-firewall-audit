@@ -14,7 +14,9 @@ import ConfirmModal from "../components/ConfirmModal";
 // Helpers de fecha — backend guarda en UTC, mostrar en GMT-5 (Ecuador)
 const fmtDate = (iso) => {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString("es-EC", { timeZone: "America/Guayaquil" });
+  // El historial llega sin zona horaria (SQLite guarda UTC "naive"): sin «Z» el navegador lo tomaría como hora local
+  const utc = /(Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : iso.replace(" ", "T") + "Z";
+  return new Date(utc).toLocaleString("es-EC", { timeZone: "America/Guayaquil" });
 };
 
 // ---------------------------------------------------------------------------

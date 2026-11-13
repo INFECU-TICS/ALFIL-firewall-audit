@@ -49,3 +49,9 @@ htmlcov/
 # Ejemplos de respuestas de API (referencia local)
 .example_responses/
 
+
+# Demo: grabaciones y artefactos generados
+docs/demo/out/
+docs/demo/node_modules/
+docs/demo/*.mp4
+docs/demo/*.webm

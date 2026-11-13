@@ -1,0 +1,11 @@
+# Stack de demo aislado: base vacía, red propia (evita la colisión DNS de `abackend` con otros stacks) y un alias para no mostrar la IP real.
+# Uso: DEMO_FW_IP=<ip-del-firewall-lab> docker compose -p alfil-demo --env-file demo.env -f docker-compose.yml -f docs/demo/docker-compose.demo.yml up -d --build
+services:
+  abackend:
+    ports: ["8091:8000"]
+    extra_hosts: ["fw-demo.lab:${DEMO_FW_IP:?defina DEMO_FW_IP}"]
+  afrontend:
+    ports: ["8090:80"]
+networks:
+  dokploy-network: !override
+    name: alfil-demo-net
