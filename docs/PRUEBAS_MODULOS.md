@@ -54,3 +54,16 @@ Misma lógica que la web en modo REST (`otp_applies_to_admin`, `build_device_acc
 - [x] En vivo (2026-11-13): `admin` y `support` sin MFA (OTP deshabilitado) = los mismos 2 críticos de la auditoría REST; ninguna zona WAN expone administración; con una regla de excepción temporal WAN→https acotada a un host, advertencia con el nombre de la regla (borrada después). Forma real confirmada: `sourceZone`, `sourceNetworks.ipv4Addresses`, `services:[{name}]`.
 - [~] Regla de excepción con origen «any» y zona WAN con https/ssh habilitado no se probaron en vivo (exponerían el lab a Internet); solo con tests.
 
+## C4. `audit_network_config` (MCP, Optimizer)
+
+Fuentes: `/nat/rules/ipv4`, `/firewall/rules/ipv4`, `/network/interfaces/network-interfaces`, `/network/zones`, `/notification/notifications`. **NTP/hora:** se buscó en la spec (`ntp`, `time`, `timezone`) y no existe ruta en la API v1; la herramienta lo declara en `limits`.
+
+- [x] DNAT (con `translatedDestination`) desde cualquier origen por interfaz WAN o «any» → advertencia; por interfaz LAN, origen acotado o SNAT/masquerade → sin hallazgo. _(test_dnat_…, test_snat_masquerade_no_es_dnat)_
+- [x] Regla NAT enlazada a una regla de firewall inexistente → advertencia; deshabilitada → informativo. _(test_regla_enlazada_inexistente_y_deshabilitada)_
+- [x] NAT deshabilitado → informativo (no se evalúa más). _(test_nat_deshabilitado…)_
+- [x] Interfaz física habilitada sin zona → informativo; deshabilitadas y VLAN no. _(test_interfaz_habilitada_sin_zona)_
+- [x] Sin correo ni SNMP → advertencia; con canal activo pero eventos de administración sin notificar → advertencia. _(test_sin_canales…, test_eventos_de_admin…)_
+- [x] Orden por severidad y conteo; solo rutas GET del catálogo. _(test_orden…, test_tool_solo_lee_rutas_get_del_catalogo)_
+- [x] En vivo (2026-11-13): `NOTIF_NONE` (igual que la auditoría web) y `PortC`/`PortD` sin zona (coincide con la topología); las 2 reglas NAT automáticas (masquerade) sin hallazgos.
+- [~] DNAT real, regla NAT enlazada rota y notificaciones con canal activo no se probaron en vivo (habría que crear NAT de prueba); solo con tests.
+

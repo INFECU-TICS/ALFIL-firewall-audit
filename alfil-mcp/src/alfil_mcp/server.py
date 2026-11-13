@@ -31,6 +31,7 @@ from .alfil import AlfilError, AlfilHub, heartbeat_loop
 from .analysis import rules as rule_analysis
 from .analysis import admin as admin_analysis
 from .analysis import match as match_analysis
+from .analysis import netconfig as netconfig_analysis
 from .analysis import topology as topo_analysis
 from .analysis import usage as usage_analysis
 from .client import SophosApiError, SophosClient, search_catalog
@@ -158,7 +159,7 @@ mcp = MCPServer(
         "Use list_connections para ver los firewalls disponibles y el parámetro `connection` para elegir uno. "
         "list_api_endpoints y api_get leen cualquier ruta GET; audit_firewall devuelve score y hallazgos de reglas; "
         "get_topology y explain_path (solo con conexiones de ALFIL) describen la red y explican la ruta de un flujo; "
-        "explain_rule_match indica qué regla decide un flujo; trace_object_usage y find_unused_objects muestran dónde se usan los objetos; audit_admin_access revisa MFA y exposición de la administración. "
+        "explain_rule_match indica qué regla decide un flujo; trace_object_usage y find_unused_objects muestran dónde se usan los objetos; audit_admin_access revisa MFA y exposición de la administración; audit_network_config revisa NAT, interfaces y notificaciones. "
         "Ninguna herramienta modifica el firewall."
     ),
 )
@@ -368,6 +369,21 @@ async def audit_admin_access(connection: str | None = None) -> dict[str, Any]:
         totp=await client.get("/authentication/multi-factor-authentication/totp-settings"),
         zones=await client.get_all("/network/zones"),
         acl_rules=await client.get_all("/acl-exception-rules/ipv4"))
+    return {"connection": label, **result}
+
+
+@read_tool
+async def audit_network_config(connection: str | None = None) -> dict[str, Any]:
+    """Higiene de NAT, interfaces y notificaciones: DNAT abierto a cualquier origen por WAN, reglas NAT que enlazan con
+    reglas de firewall inexistentes o deshabilitadas, NAT deshabilitado, interfaces sin zona y alertas sin canal activo.
+
+    No evalúa NTP/hora (la API v1 no lo expone). Solo lectura.
+    """
+    client, label = await resolve_client(connection)
+    result = netconfig_analysis.audit_network_config(
+        nat_rules=await client.get_all("/nat/rules/ipv4"), fw_rules=await client.get_all("/firewall/rules/ipv4"),
+        interfaces=await client.get_all("/network/interfaces/network-interfaces"), zones=await client.get_all("/network/zones"),
+        notifications=await client.get("/notification/notifications"))
     return {"connection": label, **result}
 
 
