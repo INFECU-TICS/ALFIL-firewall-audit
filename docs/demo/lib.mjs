@@ -26,11 +26,25 @@ const OVERLAY = `(() => {
   if (document.documentElement) add(); else document.addEventListener("DOMContentLoaded", add);
 })();`;
 
+// Enmascarado de datos sensibles en pantalla (DOM): tokens MCP siempre; el resto por DEMO_MASK='[["regex","reemplazo"],...]'
+// (p. ej. el hostname/serie del laboratorio o su direccionamiento privado). Se aplica a todo el texto visible, también al que React actualiza.
+export const MASKS = [["alfil_mcp_[A-Za-z0-9_\\-]{12,}", "alfil_mcp_••••••••••••"], ...JSON.parse(process.env.DEMO_MASK || "[]")];
+const maskScript = (masks) => `(() => {
+  const rules = ${JSON.stringify(masks)}.map(([re, to]) => [new RegExp(re, "g"), to]);
+  const fix = (n) => { const t = n.nodeValue; if (!t) return; let o = t; for (const [re, to] of rules) o = o.replace(re, to); if (o !== t) n.nodeValue = o; };
+  const walk = (root) => { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) fix(n); };
+  const start = () => { walk(document.documentElement);
+    new MutationObserver((ms) => { for (const m of ms) { if (m.type === "characterData") fix(m.target); else m.addedNodes.forEach((a) => a.nodeType === 3 ? fix(a) : a.nodeType === 1 && walk(a)); } })
+      .observe(document.documentElement, { childList: true, subtree: true, characterData: true }); };
+  if (document.documentElement) start(); else document.addEventListener("DOMContentLoaded", start);
+})();`;
+
 export async function newSession(dir, name) {
   const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ["--no-sandbox"] });
   const ctx = await browser.newContext({ viewport: { width: W, height: H }, recordVideo: { dir, size: { width: W, height: H } }, locale: "es-EC",
     timezoneId: "America/Guayaquil", acceptDownloads: true });
   await ctx.addInitScript(OVERLAY);
+  await ctx.addInitScript(maskScript(MASKS));
   const page = await ctx.newPage();
   const video = page.video();
   return { browser, ctx, page, async close() { await ctx.close(); const p = await video.path(); await browser.close(); fs.renameSync(p, `${dir}/${name}.webm`); return `${dir}/${name}.webm`; } };

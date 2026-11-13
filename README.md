@@ -60,7 +60,7 @@ Un agente solo puede **proponer** y, con aprobación, aplicar cinco acciones no 
 
 ## Documentación
 - Guía de usuario: sección *Documentación* de la web (`alfil/frontend/src/content/guia.md`).
-- Guía de desarrollo y arquitectura: [`docs/DESARROLLO.md`](docs/DESARROLLO.md) · Estado y pendientes: [`docs/ESTADO_Y_PENDIENTES.md`](docs/ESTADO_Y_PENDIENTES.md) · Pruebas por módulo: [`docs/PRUEBAS_MODULOS.md`](docs/PRUEBAS_MODULOS.md).
+- Guía de desarrollo y arquitectura: [`docs/DESARROLLO.md`](docs/DESARROLLO.md) · Pruebas por módulo: [`docs/PRUEBAS_MODULOS.md`](docs/PRUEBAS_MODULOS.md).
 - Fuentes oficiales y notas verificadas del firewall: [`docs/REFERENCES.md`](docs/REFERENCES.md).
 
 ## Stack

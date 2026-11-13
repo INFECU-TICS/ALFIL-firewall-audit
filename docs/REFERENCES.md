@@ -82,7 +82,7 @@ No se encontró ruta de hora/NTP en la búsqueda parcial; revisar la spec por `t
 ## API XML legacy en v23 (2026-10-30)
 
 - Login y consultas funcionan (`APIVersion 2300.1`), endpoint `https://<fw>:4444/webconsole/APIController` (multipart `reqxml`).
-- En el laboratorio las consultas XML son lentas (`SystemStatus` 1.6 s, `IPHost` 2.4 s, `Zone` 22 s, `FirewallRule` 50 s). Con timeout 10 s y 12 hilos, 38 de 41 colectores de ALFIL fallan por timeout. Plan en `ESTADO_Y_PENDIENTES.md`.
+- En el laboratorio las consultas XML son lentas (`SystemStatus` 1.6 s, `IPHost` 2.4 s, `Zone` 22 s, `FirewallRule` 50 s). Con timeout 10 s y 12 hilos, 38 de 41 colectores de ALFIL fallan por timeout.
 
 ## Validación de la topología en el laboratorio (2026-11-05)
 

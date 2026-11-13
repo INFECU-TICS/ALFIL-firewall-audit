@@ -121,9 +121,9 @@ docker compose up --build
 
 Línea de trabajo `alfil-mcp/`, servidor MCP sobre la REST API v1 de SFOS v23 (`/api/firewall-config/v1`, Bearer token). Fase 1 solo lectura; fase 2 escritura con confirmación. No asumir rutas de endpoints: validarlas contra la spec OpenAPI del firewall v23 de pruebas.
 
-**Estado y pendientes para retomar: `docs/ESTADO_Y_PENDIENTES.md`** (leer primero). Links oficiales y notas verificadas: `docs/REFERENCES.md`. Spec oficial extraída del firewall: `alfil-mcp/spec/openapi.yaml`; inventario de endpoints: `docs/API_V23_INVENTORY.md` (regenerar con `alfil-mcp/scripts/gen_inventory.py`). La API key de pruebas vive en `.env` (`API_KEY`, ignorado por git); el firewall de pruebas se indica con `SFOS_HOST` (puerto 4444). Nunca imprimir ni commitear la key.
+Links oficiales y notas verificadas: `docs/REFERENCES.md`. Spec oficial extraída del firewall: `alfil-mcp/spec/openapi.yaml`; inventario de endpoints: `docs/API_V23_INVENTORY.md` (regenerar con `alfil-mcp/scripts/gen_inventory.py`). La API key de pruebas vive en `.env` (`API_KEY`, ignorado por git); el firewall de pruebas se indica con `SFOS_HOST` (puerto 4444). Nunca imprimir ni commitear la key.
 
-Nota: la web ALFIL (API XML) funciona contra v23 pero el firewall de pruebas es lento; con los defaults actuales (timeout 10 s, 12 hilos) la auditoría falla casi por completo. Contraseña del admin de pruebas en la variable de entorno `FWPASS`. Detalle y plan en `docs/ESTADO_Y_PENDIENTES.md`.
+Nota: la web ALFIL (API XML) funciona contra v23 pero el firewall de pruebas es lento; con los defaults actuales (timeout 10 s, 12 hilos) la auditoría falla casi por completo. Contraseña del admin de pruebas en la variable de entorno `FWPASS`.
 
 ## Documentación: mantenerla al día (obligatorio)
 
@@ -132,7 +132,7 @@ Toda modificación funcional debe actualizar la documentación **en el mismo cam
 | Archivo | Qué contiene | Actualizar cuando |
 |---|---|---|
 | `alfil/frontend/src/content/guia.md` | Guía de usuario (se muestra en la web, sección *Documentación*): funciones, conexión por tipo de API, MCP, límites y próximas implementaciones | Cambia una función, un modo de conexión, una detección o el alcance del MCP |
-| `docs/ESTADO_Y_PENDIENTES.md` | Estado, pendientes y decisiones | Se completa o se agrega trabajo |
+| Notas de estado y pendientes del equipo | Archivo de trabajo **local, no versionado** (`docs/ESTADO_Y_PENDIENTES.md`, excluido con `.git/info/exclude`) | Se completa o se agrega trabajo |
 | `docs/REFERENCES.md` | Fuentes oficiales y hallazgos/rutas verificadas del firewall | Se verifica algo nuevo en un equipo |
 | `docs/API_V23_INVENTORY.md` | Inventario generado de la API | Cambia la spec (`alfil-mcp/scripts/gen_inventory.py`) |
 | `alfil-mcp/README.md` | Instalación y uso del MCP | Cambia el MCP |

@@ -60,6 +60,8 @@ try {
   const xl = await s.ctx.request.get(`${WEB}/api/v1/audit/reports/1/export/excel`);
   fs.writeFileSync(`${out}/reporte.xlsx`, await xl.body());
   execFileSync("pdftoppm", ["-r", "80", "-png", `${out}/reporte.pdf`, `${out}/pdf`]);
+  // Tapar en las imágenes del PDF lo que se enmascara en pantalla (DEMO_MASK_PDF: regex separadas por «;;»)
+  if (process.env.DEMO_MASK_PDF) execFileSync("python3", ["mask_pdf_png.py", `${out}/reporte.pdf`, `${out}/pdf`, "80", ...process.env.DEMO_MASK_PDF.split(";;")]);
   for (const [n, cap] of [["1", "Reporte PDF: resumen y hallazgos con recomendación"], ["2", "Reporte PDF: Health Check, alcance y datos del sistema"]]) {
     const img = fs.readFileSync(`${out}/pdf-${n}.png`).toString("base64");
     await page.evaluate((b64) => { const d = document.createElement("div"); d.id = "__img"; d.style = "position:fixed;inset:0;z-index:2147483000;background:#374151;display:flex;justify-content:center;align-items:center";

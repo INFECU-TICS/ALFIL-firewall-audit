@@ -29,6 +29,9 @@ ffmpeg -i out/seg1.webm -i out/seg2.webm -i out/seg3.webm -filter_complex "[0:v]
 ```
 Prompts usados con el agente: revisión de salud del firewall «Firewall Demo»; «¿por qué no pasa TCP/22 desde 8.8.8.8 hacia 172.16.16.20?»; «propón crear un host demo-servidor 192.0.2.80 y NO lo apliques hasta que yo lo apruebe»; y, con `"cont": true` (`opencode run -c`), «lo apruebo, aplícalo».
 
+## Enmascarar datos antes de publicar
+El video muestra la configuración real del laboratorio. Antes de publicarlo enmascare lo que identifique el equipo (hostname/serie, direccionamiento privado): `DEMO_MASK='[["V0100\\w+","FW-DEMO-01"],["192\\.168\\.10\\.","198.51.100."]]'` sustituye ese texto en la pantalla (los tokens MCP se enmascaran siempre) y `DEMO_MASK_PDF='V0100\\w+;;192\\.168\\.10\\.'` tapa lo mismo en las imágenes del PDF. Revise el video fotograma a fotograma antes de subirlo.
+
 ## Notas y cuidado
 - **Datos:** el agente envía al proveedor del modelo lo que devuelven las herramientas (reglas, IP del laboratorio). Use solo un laboratorio, nunca datos de clientes (INF-POL-IA-001).
 - **Secretos:** la API key se escribe en un campo protegido y el token se genera al vuelo; al terminar revoque el token y destruya el stack (`docker compose -p alfil-demo down -v`).

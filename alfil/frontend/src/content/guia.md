@@ -313,7 +313,7 @@ Reglas del juego:
 Este documento vive en `alfil/frontend/src/content/guia.md` y se muestra en la sección **Documentación** de la web. Al modificar funcionalidad, actualice **en el mismo cambio**:
 
 1. Esta guía (funciones, modos de conexión, tabla de detecciones, límites y próximas implementaciones).
-2. `docs/ESTADO_Y_PENDIENTES.md` (estado, pendientes y decisiones).
+2. Las notas de estado y pendientes del equipo (archivo de trabajo local, no versionado).
 3. `docs/REFERENCES.md` (hallazgos y rutas verificadas del firewall).
 4. `alfil-mcp/README.md` si cambia el MCP, y `docs/DESARROLLO.md` si cambia la arquitectura.
 5. La fecha de «Última actualización» de esta guía.
