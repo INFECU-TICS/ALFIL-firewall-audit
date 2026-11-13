@@ -1,10 +1,10 @@
 # ALFIL-MCP
 
-Servidor MCP **de solo lectura** para Sophos Firewall v23 sobre su REST API v1 (`/api/firewall-config/v1`). Parte de ALFIL (Automated Layered Firewall Inspection & Logic). Enfoque: optimización (Optimizer) y diagnóstico (Troubleshoot); fase 2: automatización con confirmación.
+Servidor MCP para Sophos Firewall v23 sobre su REST API v1 (`/api/firewall-config/v1`). Parte de ALFIL (Automated Layered Firewall Inspection & Logic). Enfoque: optimización (Optimizer) y diagnóstico (Troubleshoot); y cambios acotados con confirmación humana (fase 2, apagada por defecto).
 
-> Estado: fase 1 (validada en vivo contra un firewall v23). Pendientes y roadmap: [`../docs/ESTADO_Y_PENDIENTES.md`](../docs/ESTADO_Y_PENDIENTES.md).
+> Estado: fases 1 y 2 validadas en vivo contra un firewall v23. Pendientes y roadmap: [`../docs/ESTADO_Y_PENDIENTES.md`](../docs/ESTADO_Y_PENDIENTES.md).
 >
-> Fase 1: Ninguna herramienta modifica el firewall; el cliente rechaza cualquier verbo distinto de GET antes de salir a la red y solo acepta las 266 rutas GET de la spec oficial (`spec/openapi.yaml`).
+> Las herramientas de consulta nunca modifican el firewall: el cliente rechaza cualquier verbo distinto de GET y solo acepta las 266 rutas GET de la spec oficial (`spec/openapi.yaml`). Los cambios (`propose_*`, `apply_change`) pasan por ALFIL, exigen tres permisos (servidor, token y conexión), confirmación explícita y no incluyen borrados.
 
 ## Herramientas
 
