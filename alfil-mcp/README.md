@@ -23,6 +23,7 @@ Servidor MCP **de solo lectura** para Sophos Firewall v23 sobre su REST API v1 (
 | `explain_path(source_ip, destination_ip)` | Ruta de un flujo según la configuración: zonas, interfaz, ruta/VPN, problemas y reglas candidatas por zona. Solo con conexiones de ALFIL |
 | `audit_admin_access()` | Administradores sin MFA efectivo en la consola y exposición de HTTPS/SSH de administración desde WAN (por zona y por reglas de excepción) |
 | `audit_network_config()` | Higiene de NAT (DNAT abierto por WAN, reglas enlazadas inexistentes o deshabilitadas, NAT deshabilitado), interfaces sin zona y notificaciones sin canal activo. No evalúa NTP (la API no lo expone) |
+| `get_vendor_health_check(only_noncompliant, severity, limit)` | Verificación de políticas del propio firewall (Health Check de Sophos: CIS y otras): conteo por estado/severidad y políticas no conformes de mayor a menor severidad |
 
 Resource: `firewall://summary`. Prompts MCP: `revision_de_salud` y `por_que_no_pasa_este_trafico`.
 

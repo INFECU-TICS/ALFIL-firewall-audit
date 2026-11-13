@@ -75,3 +75,13 @@ Fuentes: `/nat/rules/ipv4`, `/firewall/rules/ipv4`, `/network/interfaces/network
 - [x] En vivo: `prompts/list` y `prompts/get` por el servicio remoto con cliente MCP real.
 - [~] Que un cliente (opencode, Claude Code…) los muestre como comando/prompt no se probó; cada agente los expone distinto.
 
+## C6. `get_vendor_health_check` (MCP)
+
+Fuente: `/firewall-health-check/policies` (31 políticas en el lab; la ruta no pagina).
+
+- [x] El estado manual (`overriddenStatus`) sustituye al calculado. _(test_estado_manual_tiene_prioridad, test_politica_sobrescrita_se_marca)_
+- [x] Conteo por estado y por severidad; no conformes ordenadas de mayor a menor severidad y por módulo. _(test_resumen_cuenta_y_ordena_por_severidad)_
+- [x] Filtros: incluir conformes, severidad, límite (`matching` frente a `listed`). _(test_filtros_incluir_conformes_severidad_y_limite)_
+- [x] Solo lectura: ruta GET del catálogo. _(test_tool_solo_lee_ruta_del_catalogo)_
+- [x] En vivo (2026-11-13): 31 políticas, 22 no conformes (11 high, 9 medium, 2 low), coincide con el `summary` del equipo.
+

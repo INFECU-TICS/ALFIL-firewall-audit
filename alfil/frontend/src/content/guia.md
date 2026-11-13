@@ -208,6 +208,7 @@ Cualquier cliente MCP compatible con transporte **stdio** puede usarlo. La defin
 | `explain_path(source_ip, destination_ip)` | Por dónde pasa un flujo: red, interfaz y zona de cada extremo, ruta o VPN, problemas (blackhole, sin ruta, salto inalcanzable) y reglas candidatas del par de zonas. No evalúa NAT, SD-WAN ni ruteo dinámico. Solo con conexiones de ALFIL |
 | `audit_admin_access()` | Administradores sin MFA efectivo en la consola y exposición de HTTPS/SSH de administración desde WAN (por zona y por reglas de excepción) |
 | `audit_network_config()` | Higiene de NAT (DNAT abierto por WAN, reglas enlazadas inexistentes o deshabilitadas, NAT deshabilitado), interfaces sin zona y notificaciones sin canal activo. No evalúa NTP (la API no lo expone) |
+| `get_vendor_health_check(only_noncompliant, severity, limit)` | Verificación de políticas del propio firewall (Health Check de Sophos: CIS y otras): conteo por estado/severidad y políticas no conformes de mayor a menor severidad |
 
 Todas las herramientas que consultan un firewall aceptan el parámetro opcional `connection` (nombre o id de la conexión de ALFIL, o `directa`).
 
@@ -254,7 +255,7 @@ Además indica la versión, el número de herramientas, el modo (solo lectura), 
 ## 7. Próximas implementaciones
 
 **Web**
-- Modo REST: rutas y perfiles SD-WAN, y usar el resultado de la verificación de políticas del propio firewall (`/firewall-health-check/policies`).
+- Modo REST: rutas y perfiles SD-WAN, y mostrar la verificación de políticas del firewall (Health Check) también en el reporte de la web (hoy solo la ofrece el MCP).
 - Topología: colorear el grafo con los hallazgos de la auditoría, servidores publicados (DNAT), rutas SD-WAN, matriz zona→zona con las reglas permitidas, mapa multi-sitio (unir firewalls por sus VPN) y comparación entre auditorías.
 - Detecciones basadas en topología (salto inalcanzable, subredes solapadas) integradas en los hallazgos y el puntaje.
 - Gráficos de resultados (tendencia del puntaje).

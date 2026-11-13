@@ -33,6 +33,7 @@ from .analysis import admin as admin_analysis
 from .analysis import match as match_analysis
 from .analysis import netconfig as netconfig_analysis
 from .analysis import topology as topo_analysis
+from .analysis import vendor_health as vendor_health_analysis
 from .analysis import usage as usage_analysis
 from .client import SophosApiError, SophosClient, search_catalog
 from .config import AlfilSettings, ConfigError, Settings
@@ -159,7 +160,7 @@ mcp = MCPServer(
         "Use list_connections para ver los firewalls disponibles y el parámetro `connection` para elegir uno. "
         "list_api_endpoints y api_get leen cualquier ruta GET; audit_firewall devuelve score y hallazgos de reglas; "
         "get_topology y explain_path (solo con conexiones de ALFIL) describen la red y explican la ruta de un flujo; "
-        "explain_rule_match indica qué regla decide un flujo; trace_object_usage y find_unused_objects muestran dónde se usan los objetos; audit_admin_access revisa MFA y exposición de la administración; audit_network_config revisa NAT, interfaces y notificaciones. "
+        "explain_rule_match indica qué regla decide un flujo; trace_object_usage y find_unused_objects muestran dónde se usan los objetos; audit_admin_access revisa MFA y exposición de la administración; audit_network_config revisa NAT, interfaces y notificaciones; get_vendor_health_check muestra las políticas no conformes según el propio firewall. "
         "Ninguna herramienta modifica el firewall."
     ),
 )
@@ -414,6 +415,19 @@ def por_que_no_pasa_este_trafico(source_ip: str, destination_ip: str, protocol: 
         "NAT, inspección web/IPS/aplicaciones, usuarios, horarios, FQDN/país, ruteo dinámico y SD-WAN. Si algo es «posible» y no "
         "«seguro», dígalo así."
     )
+
+
+@read_tool
+async def get_vendor_health_check(only_noncompliant: bool = True, severity: str | None = None, limit: int = 100,
+                                  connection: str | None = None) -> dict[str, Any]:
+    """Verificación de políticas del propio firewall (Health Check de Sophos: CIS y otras): conteo por estado y severidad y
+    la lista de políticas no conformes, de mayor a menor severidad.
+
+    `severity` (opcional): high, medium, low o veryLow. `only_noncompliant=False` incluye las conformes. Solo lectura.
+    """
+    client, label = await resolve_client(connection)
+    items = await client.get_all("/firewall-health-check/policies")
+    return {"connection": label, **vendor_health_analysis.summarize(items, only_noncompliant, severity, min(max(limit, 1), 200))}
 
 
 @mcp.resource("firewall://summary")
