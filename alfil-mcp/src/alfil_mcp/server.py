@@ -387,6 +387,35 @@ async def audit_network_config(connection: str | None = None) -> dict[str, Any]:
     return {"connection": label, **result}
 
 
+@mcp.prompt(title="Revisión de salud del firewall", description="Revisión guiada: reglas, administración, NAT/interfaces y objetos sin uso, con un informe priorizado.")
+def revision_de_salud(connection: str = "") -> str:
+    conn = f" Use la conexión «{connection}»." if connection else " Si hay varias conexiones, llame primero a list_connections y pregunte cuál."
+    return (
+        "Haga una revisión de salud del firewall solo con herramientas de lectura de ALFIL." + conn + "\n"
+        "1. audit_firewall (reglas y score).\n2. audit_admin_access (MFA y exposición de la administración).\n"
+        "3. audit_network_config (NAT, interfaces, notificaciones).\n4. find_unused_objects (candidatos a limpieza).\n"
+        "Entregue un informe en español: resumen (score y conteo por severidad), hallazgos críticos primero con la evidencia "
+        "(regla, administrador, objeto) y una acción recomendada por hallazgo, y al final los límites de lo que no se pudo evaluar. "
+        "No invente datos que las herramientas no devolvieron, no proponga borrar objetos sin revisar su uso con trace_object_usage "
+        "y recuerde que todo cambio lo decide y aplica una persona (ninguna herramienta modifica el equipo)."
+    )
+
+
+@mcp.prompt(title="¿Por qué no pasa este tráfico?", description="Diagnóstico de un flujo: ruta, regla que decide y objetos implicados.")
+def por_que_no_pasa_este_trafico(source_ip: str, destination_ip: str, protocol: str = "tcp", destination_port: str = "", connection: str = "") -> str:
+    port = f", puerto de destino {destination_port}" if destination_port else ""
+    conn = f" en la conexión «{connection}»" if connection else ""
+    return (
+        f"Diagnostique por qué no pasa el tráfico {protocol.upper()} de {source_ip} a {destination_ip}{port}{conn}, solo con herramientas de lectura.\n"
+        "1. explain_path: zonas, interfaz y ruta/VPN de origen y destino (¿hay ruta? ¿salto inalcanzable? ¿blackhole?).\n"
+        "2. explain_rule_match con esos datos: qué regla decide, cuáles anteriores «podrían» aplicar y por qué no coinciden las demás.\n"
+        "3. Si decide una regla de bloqueo o ninguna, use trace_object_usage sobre los objetos de la regla candidata para ver qué cubren.\n"
+        "Concluya en español con la causa más probable y qué cambiaría (sin aplicarlo). Aclare lo que estas herramientas no evalúan: "
+        "NAT, inspección web/IPS/aplicaciones, usuarios, horarios, FQDN/país, ruteo dinámico y SD-WAN. Si algo es «posible» y no "
+        "«seguro», dígalo así."
+    )
+
+
 @mcp.resource("firewall://summary")
 async def summary() -> str:
     """Resumen rápido del firewall (conexión por defecto): zonas y cantidad de reglas."""

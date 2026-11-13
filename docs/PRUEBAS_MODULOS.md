@@ -67,3 +67,11 @@ Fuentes: `/nat/rules/ipv4`, `/firewall/rules/ipv4`, `/network/interfaces/network
 - [x] En vivo (2026-11-13): `NOTIF_NONE` (igual que la auditoría web) y `PortC`/`PortD` sin zona (coincide con la topología); las 2 reglas NAT automáticas (masquerade) sin hallazgos.
 - [~] DNAT real, regla NAT enlazada rota y notificaciones con canal activo no se probaron en vivo (habría que crear NAT de prueba); solo con tests.
 
+## C5. Prompts MCP (`revision_de_salud`, `por_que_no_pasa_este_trafico`)
+
+- [x] Están registrados y son exactamente esos dos. _(test_prompts_registrados)_
+- [x] Cada herramienta que nombran existe en el servidor (evita instrucciones a herramientas inexistentes tras un renombre). _(test_los_prompts_solo_nombran_herramientas_existentes)_
+- [x] Los argumentos (IPs, protocolo, puerto, conexión) llegan al texto. _(test_argumentos_del_diagnostico)_
+- [x] En vivo: `prompts/list` y `prompts/get` por el servicio remoto con cliente MCP real.
+- [~] Que un cliente (opencode, Claude Code…) los muestre como comando/prompt no se probó; cada agente los expone distinto.
+
