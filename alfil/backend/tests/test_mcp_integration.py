@@ -130,7 +130,7 @@ def test_solo_conexiones_habilitadas_y_sin_credenciales(client):
     token = new_token(client)
     r = client.get("/api/v1/mcp/connections", headers=auth(token))
     assert [c["name"] for c in r.json()] == ["habilitada"]
-    assert set(r.json()[0]) == {"id", "name", "host", "port", "verify_ssl"}
+    assert set(r.json()[0]) == {"id", "name", "host", "port", "verify_ssl", "write_enabled"}
     assert "secreto" not in r.text and "password" not in r.text
     assert client.get("/api/v1/mcp/status").json()["enabled_connections"] == 1
 

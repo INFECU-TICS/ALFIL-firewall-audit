@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import Base, engine, SessionLocal, ensure_schema
 from app.models.audit_report import AuditReport  # noqa: ensure table is registered
-from app.models.mcp_access import McpToken  # noqa: ensure table is registered
+from app.models.mcp_access import McpToken, McpChange, McpAuditLog  # noqa: ensure table is registered
 from app.models.app_setting import AppSetting  # noqa: ensure table is registered
 from app.services.crypto import migrate_credentials, validate_encryption_key
 from app.routers import connections, audit, mcp

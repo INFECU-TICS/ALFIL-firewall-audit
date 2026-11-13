@@ -64,7 +64,7 @@ def service(monkeypatch):
 
 def test_health_sin_token(service):
     r = httpx.get(f"{service}/health")
-    assert r.status_code == 200 and r.json()["transport"] == "http" and r.json()["read_only"] is True and r.json()["tools"] == 14
+    assert r.status_code == 200 and r.json()["transport"] == "http" and r.json()["read_only"] is True and r.json()["tools"] == 21
 
 
 @pytest.mark.parametrize("headers", [{}, {"Authorization": "Basic abc"}, {"Authorization": "Bearer"}, {"Authorization": "Bearer token-inventado"}])

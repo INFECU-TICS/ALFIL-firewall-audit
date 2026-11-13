@@ -156,12 +156,12 @@ mcp = MCPServer(
     version=__version__,
     lifespan=lifespan,
     instructions=(
-        "Consulta y auditoría de solo lectura de un Sophos Firewall v23 vía REST API v1. "
+        "Consulta y auditoría de un Sophos Firewall v23 vía REST API v1 (lectura) y, solo si el administrador lo habilita, cambios acotados con confirmación. "
         "Use list_connections para ver los firewalls disponibles y el parámetro `connection` para elegir uno. "
         "list_api_endpoints y api_get leen cualquier ruta GET; audit_firewall devuelve score y hallazgos de reglas; "
         "get_topology y explain_path (solo con conexiones de ALFIL) describen la red y explican la ruta de un flujo; "
-        "explain_rule_match indica qué regla decide un flujo; trace_object_usage y find_unused_objects muestran dónde se usan los objetos; audit_admin_access revisa MFA y exposición de la administración; audit_network_config revisa NAT, interfaces y notificaciones; get_vendor_health_check muestra las políticas no conformes según el propio firewall. "
-        "Ninguna herramienta modifica el firewall."
+        "explain_rule_match indica qué regla decide un flujo; trace_object_usage y find_unused_objects muestran dónde se usan los objetos; audit_admin_access revisa MFA y exposición de la administración; audit_network_config revisa NAT, interfaces y notificaciones; get_vendor_health_check muestra las políticas no conformes según el propio firewall. Los cambios (propose_* y apply_change) exigen un token con permiso de escritura, nunca se aplican sin confirmación explícita y no hay borrados. "
+        "Las herramientas de consulta nunca modifican el firewall."
     ),
 )
 
@@ -428,6 +428,98 @@ async def get_vendor_health_check(only_noncompliant: bool = True, severity: str 
     client, label = await resolve_client(connection)
     items = await client.get_all("/firewall-health-check/policies")
     return {"connection": label, **vendor_health_analysis.summarize(items, only_noncompliant, severity, min(max(limit, 1), 200))}
+
+
+WRITE_PROPOSE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False)
+WRITE_APPLY = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=False)
+
+
+def write_tool(annotations: ToolAnnotations) -> Callable[[Callable[..., Awaitable[Any]]], Callable[..., Awaitable[Any]]]:
+    """Registra una tool de la fase 2 (escritura con confirmación). Solo funciona con conexiones de ALFIL."""
+
+    def deco(fn: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
+        @functools.wraps(fn)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return await fn(*args, **kwargs)
+            except _EXPECTED as exc:
+                raise ToolError(str(exc)) from exc
+        return mcp.tool(annotations=annotations)(wrapper)
+    return deco
+
+
+async def _propose(action: str, params: dict[str, Any], connection: str | None) -> dict[str, Any]:
+    hub = get_hub()
+    if not hub:
+        raise ConfigError("Los cambios solo están disponibles con conexiones de ALFIL (ALFIL_URL y ALFIL_MCP_TOKEN con permiso de escritura).")
+    client, label = await resolve_client(connection)
+    if label == DIRECT_NAME or not hasattr(client, "_id"):
+        raise ConfigError("Los cambios no están disponibles en modo directo: use una conexión de ALFIL.")
+    plan = await hub.propose_change(client._id, action, {k: v for k, v in params.items() if v is not None})
+    plan["next_step"] = (f"Muestre este resumen a la persona responsable. Solo si lo aprueba, llame a apply_change(change_id=\"{plan['change_id']}\", confirm=true). "
+                         "La propuesta caduca y se descarta si el equipo cambia antes de aplicarla.")
+    return plan
+
+
+@write_tool(WRITE_PROPOSE)
+async def propose_create_rule(name: str, action: str, source_zones: list[str] | None = None, destination_zones: list[str] | None = None,
+                              source_networks: list[str] | None = None, destination_networks: list[str] | None = None,
+                              services: list[str] | None = None, log_traffic: bool = True, enabled: bool = False, position: str = "bottom",
+                              reference: str | None = None, description: str = "", connection: str | None = None) -> dict[str, Any]:
+    """PROPONE crear una regla de firewall (no la crea). `action`: accept, drop o reject. Zonas, redes (hosts o grupos) y servicios
+    deben existir; omitidos = «any». Nace DESHABILITADA salvo `enabled=true`. `position`: top, bottom, before o after (con `reference`).
+    Se rechazan las reglas accept Any→Any. Devuelve el diff y un `change_id`; nada cambia hasta `apply_change`."""
+    return await _propose("create_rule", dict(name=name, action=action, source_zones=source_zones, destination_zones=destination_zones,
+                                              source_networks=source_networks, destination_networks=destination_networks, services=services,
+                                              log_traffic=log_traffic, enabled=enabled, position=position, reference=reference, description=description), connection)
+
+
+@write_tool(WRITE_PROPOSE)
+async def propose_set_rule_enabled(name: str, enabled: bool, connection: str | None = None) -> dict[str, Any]:
+    """PROPONE habilitar o deshabilitar una regla existente (no la cambia). Devuelve el diff y un `change_id`."""
+    return await _propose("set_rule_enabled", dict(name=name, enabled=enabled), connection)
+
+
+@write_tool(WRITE_PROPOSE)
+async def propose_move_rule(name: str, position: str, reference: str | None = None, connection: str | None = None) -> dict[str, Any]:
+    """PROPONE mover una regla a top, bottom, before o after otra (`reference`). Cambiar el orden cambia qué regla decide cada flujo:
+    compruébelo con explain_rule_match. Devuelve el diff y un `change_id`."""
+    return await _propose("move_rule", dict(name=name, position=position, reference=reference), connection)
+
+
+@write_tool(WRITE_PROPOSE)
+async def propose_create_host(name: str, ip: str | None = None, network: str | None = None, description: str = "",
+                              connection: str | None = None) -> dict[str, Any]:
+    """PROPONE crear un host IPv4: `ip` (192.0.2.10) o `network` en CIDR (192.0.2.0/24), uno solo. Devuelve el diff y un `change_id`."""
+    return await _propose("create_host", dict(name=name, ip=ip, network=network, description=description or None), connection)
+
+
+@write_tool(WRITE_PROPOSE)
+async def propose_create_service(name: str, protocol: str, port: str, description: str = "", connection: str | None = None) -> dict[str, Any]:
+    """PROPONE crear un servicio TCP o UDP con `port` (443) o rango (8000-8100). Devuelve el diff y un `change_id`."""
+    return await _propose("create_service", dict(name=name, protocol=protocol, port=port, description=description or None), connection)
+
+
+@write_tool(WRITE_APPLY)
+async def apply_change(change_id: str, confirm: bool = False) -> dict[str, Any]:
+    """APLICA en el firewall un cambio ya propuesto. Exige `confirm=true` y que la persona responsable haya aprobado el resumen.
+    Antes de escribir ALFIL guarda una copia previa y comprueba que el equipo no haya cambiado desde la propuesta; después verifica
+    el resultado. Si el equipo tarda y no se puede comprobar, el estado queda «unknown»: verifique antes de reintentar."""
+    hub = get_hub()
+    if not hub:
+        raise ConfigError("Los cambios solo están disponibles con conexiones de ALFIL.")
+    if not confirm:
+        raise SophosApiError("Falta confirm=true. Muestre el resumen de la propuesta a la persona responsable y aplique solo con su aprobación.")
+    return await hub.apply_change(change_id, True)
+
+
+@read_tool
+async def list_changes(limit: int = 20) -> list[dict[str, Any]]:
+    """Cambios propuestos o aplicados con este token (más recientes primero), con su estado y resultado. Solo lectura."""
+    hub = get_hub()
+    if not hub:
+        raise ConfigError("Los cambios solo están disponibles con conexiones de ALFIL.")
+    return await hub.list_changes(min(max(limit, 1), 100))
 
 
 @mcp.resource("firewall://summary")

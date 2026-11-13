@@ -28,6 +28,12 @@ def ensure_schema() -> None:
     if "mcp_enabled" not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE connections ADD COLUMN mcp_enabled BOOLEAN NOT NULL DEFAULT 0"))
+    if "mcp_write_enabled" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE connections ADD COLUMN mcp_write_enabled BOOLEAN NOT NULL DEFAULT 0"))
+    if "mcp_tokens" in insp.get_table_names() and "can_write" not in {c["name"] for c in insp.get_columns("mcp_tokens")}:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE mcp_tokens ADD COLUMN can_write BOOLEAN NOT NULL DEFAULT 0"))
     if "audit_reports" in insp.get_table_names() and "seq" not in {c["name"] for c in insp.get_columns("audit_reports")}:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE audit_reports ADD COLUMN seq INTEGER"))

@@ -38,6 +38,10 @@ class RestError(RuntimeError):
     pass
 
 
+class RestTimeout(RestError):
+    """El equipo no respondió a tiempo: en una escritura, el cambio pudo haberse aplicado igual."""
+
+
 class SophosRestClient:
     api_type = "rest"
 
@@ -58,7 +62,7 @@ class SophosRestClient:
         try:
             resp = self._session.get(self.base_url + path, params=params, verify=self.verify_ssl, timeout=self.timeout)
         except requests.exceptions.Timeout:
-            raise RestError(f"El equipo no responde (timeout de {self.timeout} s)")
+            raise RestTimeout(f"El equipo no responde (timeout de {self.timeout} s)")
         except requests.exceptions.SSLError:
             raise RestError("Error TLS: certificado no verificable (desactive 'Verificar SSL' para equipos con certificado propio)")
         except requests.exceptions.ConnectionError:
@@ -79,6 +83,28 @@ class SophosRestClient:
             return resp.json()
         except ValueError:
             raise RestError("Respuesta no es JSON")
+
+    def _write(self, method: str, path: str, payload: dict | None = None, timeout: int = 150) -> Any:
+        """POST/PATCH de la fase 2 del MCP. Solo lo invoca `routers/mcp.py` tras una propuesta confirmada; los equipos lentos
+        tardan ~20 s por escritura, de ahí el timeout alto. Un timeout no implica que no se aplicó (ver RestTimeout)."""
+        if method not in ("POST", "PATCH"):
+            raise RestError(f"Método de escritura no permitido: {method}")
+        try:
+            resp = self._session.request(method, self.base_url + path, json=payload, verify=self.verify_ssl, timeout=max(self.timeout, timeout))
+        except requests.exceptions.Timeout:
+            raise RestTimeout("El equipo no respondió a tiempo a la escritura")
+        except requests.exceptions.RequestException as e:
+            raise RestError(f"Error de red al escribir: {type(e).__name__}")
+        if resp.status_code >= 400:
+            try:
+                detail = str(resp.json().get("message", ""))
+            except (ValueError, AttributeError):
+                detail = ""
+            raise RestError(f"El equipo rechazó el cambio (HTTP {resp.status_code}){': ' + detail if detail else ''}")
+        try:
+            return resp.json()
+        except ValueError:
+            return {}
 
     def _get_all(self, path: str, params: dict | None = None, max_items: int = 5000) -> list[dict]:
         items: list[dict] = []

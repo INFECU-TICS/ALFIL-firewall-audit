@@ -15,6 +15,7 @@ services:
       - SOPHOS_REQUEST_TIMEOUT=${SOPHOS_REQUEST_TIMEOUT:-90}
       - SOPHOS_COLLECT_WORKERS=${SOPHOS_COLLECT_WORKERS:-4}
       - MCP_SERVICE_URL=http://amcp:8765
+      - MCP_ALLOW_WRITE=${MCP_ALLOW_WRITE:-false}
     volumes:
       - alfil_data:/data
     expose:

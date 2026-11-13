@@ -77,6 +77,17 @@ class AlfilHub:
         """Grafo de topología calculado por ALFIL con la configuración actual del firewall."""
         return (await self._request("GET", f"connections/{connection_id}/topology")).json()
 
+    async def propose_change(self, connection_id: int, action: str, params: dict[str, Any]) -> dict[str, Any]:
+        """Fase 2: ALFIL valida el cambio y devuelve el diff; no toca el firewall (lo hace `apply_change`)."""
+        return (await self._request("POST", f"connections/{connection_id}/changes", json={"action": action, "params": params}, timeout=120)).json()
+
+    async def apply_change(self, change_id: str, confirm: bool) -> dict[str, Any]:
+        # El equipo puede tardar decenas de segundos por escritura (~20 s en el de laboratorio)
+        return (await self._request("POST", f"changes/{change_id}/apply", json={"confirm": confirm}, timeout=240)).json()
+
+    async def list_changes(self, limit: int) -> list[dict[str, Any]]:
+        return (await self._request("GET", "changes", params={"limit": limit})).json()
+
     def client_for(self, connection_id: int) -> "AlfilProxyClient":
         return AlfilProxyClient(self, connection_id)
 

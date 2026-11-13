@@ -17,9 +17,10 @@ const EXPIRY = [
   { value: "90", label: "90 días" }, { value: "365", label: "1 año" }, { value: "never", label: "Sin caducidad" },
 ];
 
-export default function AgentConnectModal({ token, tokenName, tokenConfigured, defaultDays = 7, onCreate, busy, error, onClose }) {
+export default function AgentConnectModal({ token, tokenName, tokenConfigured, defaultDays = 7, writeAllowed = false, onCreate, busy, error, onClose }) {
   const [name, setName] = useState("");
   const [days, setDays] = useState(String(defaultDays));
+  const [canWrite, setCanWrite] = useState(false);
   const [url, setUrl] = useState(`${window.location.origin}/mcp`);
   const [tab, setTab] = useState("prompt");
   const agents = buildAgents({ url, token });
@@ -31,7 +32,8 @@ export default function AgentConnectModal({ token, tokenName, tokenConfigured, d
       <div className="space-y-4 text-sm">
         <p className="text-gray-600">
           Registre este servidor MCP remoto en su agente con la URL y un token. No necesita instalar nada: el agente lee sus firewalls
-          habilitados en modo <strong>solo lectura</strong>.
+          habilitados en modo <strong>solo lectura</strong>. Opcionalmente, un token con permiso de escritura puede <em>proponer</em> cambios acotados
+          que solo se aplican con una confirmación explícita y quedan en el registro de auditoría.
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -56,8 +58,12 @@ export default function AgentConnectModal({ token, tokenName, tokenConfigured, d
                     {EXPIRY.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
+                <label className={`flex items-start gap-2 text-[11px] ${writeAllowed ? "text-gray-700" : "text-gray-400"}`} title={writeAllowed ? "" : "El servidor tiene la escritura deshabilitada (MCP_ALLOW_WRITE)"}>
+                  <input type="checkbox" className="mt-0.5" disabled={!writeAllowed} checked={writeAllowed && canWrite} onChange={(e) => setCanWrite(e.target.checked)} />
+                  <span>Permitir proponer cambios (reglas y objetos; nunca borrados). {!writeAllowed && "Deshabilitado por el administrador del servidor."}</span>
+                </label>
                 <button className="btn-secondary text-xs py-2 px-3 w-full justify-center" disabled={busy || !name.trim()}
-                  onClick={() => onCreate({ name: name.trim(), expires_days: days === "never" ? null : Number(days) })}>
+                  onClick={() => onCreate({ name: name.trim(), expires_days: days === "never" ? null : Number(days), can_write: writeAllowed && canWrite })}>
                   {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
                   Crear token para este agente
                 </button>

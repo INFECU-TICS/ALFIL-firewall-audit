@@ -21,6 +21,10 @@ class Settings(BaseSettings):
 
     # Servicio MCP remoto (opcional): el dashboard sondea su /health para mostrar el estado
     mcp_service_url: str = ""
+    # Fase 2 del MCP (escritura con confirmación): apagada por defecto. Además cada token (can_write) y cada conexión
+    # (mcp_write_enabled) deben permitirla explícitamente.
+    mcp_allow_write: bool = False
+    mcp_change_ttl_minutes: int = 15
 
     class Config:
         env_file = ".env"

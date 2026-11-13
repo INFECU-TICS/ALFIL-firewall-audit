@@ -13,6 +13,38 @@ const STATES = {
 const ago = (s) => (s == null ? "—" : s < 60 ? `hace ${s} s` : s < 3600 ? `hace ${Math.floor(s / 60)} min` : `hace ${Math.floor(s / 3600)} h`);
 const secondsSince = (iso) => (iso ? Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000)) : null);
 
+const EVENT = {
+  proposed: ["Propuesto", "bg-blue-100 text-blue-800"], applied: ["Aplicado", "bg-green-100 text-green-800"],
+  failed: ["Falló", "bg-red-100 text-red-800"], unknown: ["Sin confirmar", "bg-amber-100 text-amber-800"], rejected: ["Rechazado", "bg-gray-200 text-gray-700"],
+};
+
+function AuditLog({ refreshKey }) {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    const load = () => api.mcpAuditLog(15).then(setRows).catch(() => {});
+    load(); const t = setInterval(load, 15000); return () => clearInterval(t);
+  }, [refreshKey]);
+  return (
+    <details className="mt-3 border-t border-gray-100 pt-3">
+      <summary className="text-xs font-semibold text-gray-700 cursor-pointer">Registro de auditoría de cambios ({rows.length})</summary>
+      {rows.length === 0 ? <p className="text-xs text-gray-500 mt-2">Sin actividad de escritura todavía.</p> : (
+        <table className="w-full text-xs mt-2">
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="border-t border-gray-50 align-top">
+                <td className="py-1.5 pr-2 text-gray-500 whitespace-nowrap">{new Date(r.at).toLocaleString()}</td>
+                <td className="py-1.5 pr-2"><span className={`px-1.5 py-0.5 rounded font-semibold ${(EVENT[r.event] || ["", "bg-gray-100"])[1]}`}>{(EVENT[r.event] || [r.event])[0]}</span></td>
+                <td className="py-1.5 pr-2 text-gray-600 whitespace-nowrap">{r.token} · {r.connection}</td>
+                <td className="py-1.5 text-gray-800">{r.summary || r.detail?.reason || ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </details>
+  );
+}
+
 export default function McpStatusCard({ refreshKey = 0 }) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
@@ -80,7 +112,7 @@ export default function McpStatusCard({ refreshKey = 0 }) {
             <div><dt className="text-gray-400">Herramientas</dt><dd className="font-medium">{tools ?? "—"}</dd></div>
             <div>
               <dt className="text-gray-400">Modo</dt>
-              <dd className="font-medium flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-green-600" />{info.read_only === false ? "Escritura" : "Solo lectura"}</dd>
+              <dd className="font-medium flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-green-600" />{status.write_allowed ? "Lectura + cambios con confirmación" : "Solo lectura"}</dd>
             </div>
             <div><dt className="text-gray-400">Conexiones habilitadas</dt><dd className="font-medium">{status.enabled_connections}</dd></div>
             <div><dt className="text-gray-400">Último uso de un agente</dt><dd className="font-medium">{ago(used)}</dd></div>
@@ -99,13 +131,14 @@ export default function McpStatusCard({ refreshKey = 0 }) {
           <table className="w-full text-xs">
             <thead><tr className="text-left text-gray-400">
               <th className="font-normal pb-1">Agente</th><th className="font-normal pb-1">Token</th>
-              <th className="font-normal pb-1">Caducidad</th><th className="font-normal pb-1">Último uso</th><th />
+              <th className="font-normal pb-1">Permisos</th><th className="font-normal pb-1">Caducidad</th><th className="font-normal pb-1">Último uso</th><th />
             </tr></thead>
             <tbody>
               {status.tokens.map((t) => (
                 <tr key={t.id} className="border-t border-gray-50">
                   <td className="py-1.5 font-medium text-gray-800">{t.name}</td>
                   <td className="py-1.5 font-mono text-gray-600">{t.token_prefix}…</td>
+                  <td className="py-1.5">{t.can_write ? <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">Lectura + cambios</span> : "Lectura"}</td>
                   <td className="py-1.5">
                     {t.expired ? <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-800 font-semibold">Caducado</span>
                       : t.expires_at ? new Date(t.expires_at).toLocaleDateString() : "No caduca"}
@@ -122,9 +155,10 @@ export default function McpStatusCard({ refreshKey = 0 }) {
           </table>
         </div>
       )}
+      {status?.write_allowed && <AuditLog refreshKey={refreshKey} />}
       {connectOpen && (
         <AgentConnectModal token={token?.value} tokenName={token?.name} tokenConfigured={!!status?.token_configured}
-          defaultDays={status?.default_expires_days} onCreate={create} busy={busy} error={createError}
+          defaultDays={status?.default_expires_days} writeAllowed={!!status?.write_allowed} onCreate={create} busy={busy} error={createError}
           onClose={() => { setConnectOpen(false); setToken(null); setCreateError(""); }} />
       )}
     </section>

@@ -24,6 +24,12 @@ Servidor MCP **de solo lectura** para Sophos Firewall v23 sobre su REST API v1 (
 | `audit_admin_access()` | Administradores sin MFA efectivo en la consola y exposición de HTTPS/SSH de administración desde WAN (por zona y por reglas de excepción) |
 | `audit_network_config()` | Higiene de NAT (DNAT abierto por WAN, reglas enlazadas inexistentes o deshabilitadas, NAT deshabilitado), interfaces sin zona y notificaciones sin canal activo. No evalúa NTP (la API no lo expone) |
 | `get_vendor_health_check(only_noncompliant, severity, limit)` | Verificación de políticas del propio firewall (Health Check de Sophos: CIS y otras): conteo por estado/severidad y políticas no conformes de mayor a menor severidad |
+| `propose_create_rule(name, action, source_zones, destination_zones, source_networks, destination_networks, services, log_traffic, enabled, position, reference)` | **Propone** crear una regla (nace deshabilitada; rechaza accept Any→Any); devuelve diff y `change_id` |
+| `propose_set_rule_enabled(name, enabled)` | **Propone** habilitar o deshabilitar una regla |
+| `propose_move_rule(name, position, reference)` | **Propone** mover una regla (top/bottom/before/after) |
+| `propose_create_host(name, ip \| network)` / `propose_create_service(name, protocol, port)` | **Propone** crear un host IPv4 o un servicio TCP/UDP |
+| `apply_change(change_id, confirm)` | **Aplica** un cambio propuesto; exige `confirm=true`, copia previa, verificación de que el equipo no cambió y comprobación posterior |
+| `list_changes(limit)` | Cambios propuestos o aplicados con este token |
 
 Resource: `firewall://summary`. Prompts MCP: `revision_de_salud` y `por_que_no_pasa_este_trafico`.
 

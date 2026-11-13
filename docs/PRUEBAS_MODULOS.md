@@ -85,3 +85,19 @@ Fuente: `/firewall-health-check/policies` (31 políticas en el lab; la ruta no p
 - [x] Solo lectura: ruta GET del catálogo. _(test_tool_solo_lee_ruta_del_catalogo)_
 - [x] En vivo (2026-11-13): 31 políticas, 22 no conformes (11 high, 9 medium, 2 low), coincide con el `summary` del equipo.
 
+## D1. Fase 2 del MCP: cambios con confirmación
+
+Lista blanca: crear regla, habilitar/deshabilitar, mover, crear host, crear servicio (sin borrados ni ediciones libres). Código: `services/mcp_changes.py`, `routers/mcp.py`, herramientas en `server.py`.
+
+- [x] Validación: nombres, acción, zonas/redes/servicios existentes (con sugerencia), posiciones, IP/CIDR, puertos; acción fuera de la lista blanca → rechazo. _(tests/test_mcp_changes.py, 22 tests)_
+- [x] Seguridad: regla accept Any→Any bloqueada; las reglas nacen deshabilitadas; advertencias al habilitar/mover. _(test_regla_any_any…, test_crear_regla_*)_
+- [x] Tres llaves (servidor, token, conexión) y registro de los rechazos. _(test_las_tres_llaves)_
+- [x] Confirmación explícita; solo el token que propuso puede aplicar; no se aplica dos veces; caducidad. _(test_sin_confirmacion…, test_otro_token…, test_propuesta_caducada)_
+- [x] Detección de cambios intermedios y copia previa obligatoria (sin ella no se escribe). _(test_si_el_equipo_cambio…, test_sin_copia_previa…)_
+- [x] Timeout: se consulta el estado antes de concluir (aplicado / no aplicado / sin confirmar). _(test_timeout_*, test_verificar_aplicado…)_
+- [x] El cliente real solo escribe POST/PATCH. _(test_cliente_real_solo_escribe_post_y_patch)_
+- [x] Herramientas MCP: anotaciones (propose = no destructiva, apply = destructiva), `apply_change` exige `confirm`, no hay herramientas de borrado, sin ALFIL/modo directo no hay cambios. _(alfil-mcp/tests/test_write_tools.py)_
+- [x] **En vivo (lab, 2026-11-13):** crear host y servicio, crear regla drop (deshabilitada, arriba), `explain_rule_match` sin efecto → habilitar → la regla decide → deshabilitar → mover abajo/arriba; todas verificadas por ALFIL; rechazos reales (Any→Any, nombre inválido, sin confirm, token de solo lectura, «ya está última»). Todo borrado al final (por REST directo, el MCP no borra).
+- **Hallazgo en vivo:** la API de mover solo acepta `before`/`after` («allowed values are [after before]»); `top`/`bottom` se traducen a «antes de la primera»/«después de la última». La creación sí acepta `top`/`bottom`.
+- [~] No probado en vivo: timeout real de escritura, cambio intermedio real y propuesta caducada (solo con tests), ni la UI de los interruptores y el registro (solo compila).
+

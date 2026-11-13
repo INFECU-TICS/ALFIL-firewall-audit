@@ -51,6 +51,7 @@ def create_connection(payload: ConnectionConfigCreate, db: Session = Depends(get
         verify_ssl=payload.verify_ssl,
         api_type=payload.api_type,
         mcp_enabled=payload.mcp_enabled,
+        mcp_write_enabled=payload.mcp_write_enabled,
         is_active=payload.is_active,
     )
     db.add(obj)
@@ -81,6 +82,12 @@ def update_connection(connection_id: int, payload: ConnectionConfigUpdate, db: S
         if update_data.get("mcp_enabled"):
             raise HTTPException(status_code=400, detail="Solo las conexiones REST pueden habilitarse para el MCP")
         update_data["mcp_enabled"] = False  # al pasar a XML se retira del MCP
+    if update_data.get("mcp_enabled") is False:
+        update_data["mcp_write_enabled"] = False  # sin MCP no hay escritura
+    if update_data.get("mcp_write_enabled") and not update_data.get("mcp_enabled", obj.mcp_enabled):
+        raise HTTPException(status_code=400, detail="La escritura del MCP requiere que la conexión esté habilitada para el MCP")
+    if final_type != "rest":
+        update_data["mcp_write_enabled"] = False
     if "password" in update_data:
         obj.password_encrypted = _encrypt(update_data.pop("password"))
 

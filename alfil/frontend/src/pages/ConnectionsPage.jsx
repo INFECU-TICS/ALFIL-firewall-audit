@@ -36,6 +36,16 @@ export default function ConnectionsPage() {
   const handleCreate = async (data) => { await api.createConnection(data); setModal(null); load(); };
   const handleUpdate = async (data) => { await api.updateConnection(modal.id, data); setModal(null); load(); };
 
+  const [writeAllowed, setWriteAllowed] = useState(false);
+  useEffect(() => { api.mcpStatus().then((s) => setWriteAllowed(!!s.write_allowed)).catch(() => {}); }, [mcpRefresh]);
+  const toggleWrite = async (conn) => {
+    if (!conn.mcp_write_enabled && !window.confirm(`¿Permitir que agentes con token de escritura propongan cambios en «${conn.name}»? Cada cambio exigirá una confirmación explícita y quedará en el registro de auditoría.`)) return;
+    setTogglingMcp(conn.id);
+    try { await api.updateConnection(conn.id, { mcp_write_enabled: !conn.mcp_write_enabled }); await load(); setMcpRefresh((n) => n + 1); }
+    catch (e) { alert(e.message); }
+    finally { setTogglingMcp(null); }
+  };
+
   const toggleMcp = async (conn) => {
     setTogglingMcp(conn.id);
     try { await api.updateConnection(conn.id, { mcp_enabled: !conn.mcp_enabled }); await load(); setMcpRefresh((n) => n + 1); }
@@ -142,6 +152,17 @@ export default function ConnectionsPage() {
                     </button>
                   )}
                 </div>
+
+                {conn.api_type === "rest" && conn.mcp_enabled && writeAllowed && (
+                  <div className="flex items-center justify-between gap-2 text-xs rounded-lg bg-amber-50 px-2.5 py-1.5">
+                    <span className="text-amber-900">{conn.mcp_write_enabled ? "El MCP puede proponer cambios" : "Cambios desde el MCP: no permitidos"}</span>
+                    <button role="switch" aria-checked={!!conn.mcp_write_enabled} title="Permitir cambios con confirmación desde el MCP"
+                      disabled={togglingMcp === conn.id} onClick={() => toggleWrite(conn)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ${conn.mcp_write_enabled ? "bg-amber-500" : "bg-gray-300"}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${conn.mcp_write_enabled ? "translate-x-4" : "translate-x-0.5"}`} />
+                    </button>
+                  </div>
+                )}
 
                 {tr && (
                   <div className={`flex items-center gap-2 text-xs p-2 rounded-lg ${tr.success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>

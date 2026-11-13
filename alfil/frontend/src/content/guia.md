@@ -1,6 +1,6 @@
 # Guía de uso de ALFIL
 
-> Última actualización: 2026-11-13 (reporte y exportes revisados: recomendaciones, alcance y Health Check). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
+> Última actualización: 2026-11-13 (MCP fase 2: cambios con confirmación). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
 
 ## 1. Qué es ALFIL
 
@@ -209,6 +209,12 @@ Cualquier cliente MCP compatible con transporte **stdio** puede usarlo. La defin
 | `audit_admin_access()` | Administradores sin MFA efectivo en la consola y exposición de HTTPS/SSH de administración desde WAN (por zona y por reglas de excepción) |
 | `audit_network_config()` | Higiene de NAT (DNAT abierto por WAN, reglas enlazadas inexistentes o deshabilitadas, NAT deshabilitado), interfaces sin zona y notificaciones sin canal activo. No evalúa NTP (la API no lo expone) |
 | `get_vendor_health_check(only_noncompliant, severity, limit)` | Verificación de políticas del propio firewall (Health Check de Sophos: CIS y otras): conteo por estado/severidad y políticas no conformes de mayor a menor severidad |
+| `propose_create_rule(name, action, source_zones, destination_zones, source_networks, destination_networks, services, log_traffic, enabled, position, reference)` | **Propone** crear una regla (nace deshabilitada; rechaza accept Any→Any); devuelve diff y `change_id` |
+| `propose_set_rule_enabled(name, enabled)` | **Propone** habilitar o deshabilitar una regla |
+| `propose_move_rule(name, position, reference)` | **Propone** mover una regla (top/bottom/before/after) |
+| `propose_create_host(name, ip \| network)` / `propose_create_service(name, protocol, port)` | **Propone** crear un host IPv4 o un servicio TCP/UDP |
+| `apply_change(change_id, confirm)` | **Aplica** un cambio propuesto; exige `confirm=true`, copia previa, verificación de que el equipo no cambió y comprobación posterior |
+| `list_changes(limit)` | Cambios propuestos o aplicados con este token |
 
 Todas las herramientas que consultan un firewall aceptan el parámetro opcional `connection` (nombre o id de la conexión de ALFIL, o `directa`).
 
@@ -250,6 +256,19 @@ Además indica la versión, el número de herramientas, el modo (solo lectura), 
 - **Excel:** hojas Resumen, Hallazgos, Verificación Sophos, datos (reglas, NAT, administradores, usuarios, interfaces, rutas, VPN, hosts y grupos, FQDN, servicios, horarios, filtrado web, aplicaciones, TLS) y Alcance; encabezado fijo y filtros.
 - **PDF:** resumen, hallazgos con recomendación, Health Check (severidad alta), alcance y datos del sistema, con pie de página; los nombres con símbolos como `&` o `<` se muestran correctamente.
 - Fechas en formato `AAAA-MM-DD HH:MM UTC` y etiquetas en español. Todo reporte debe ser revisado por una persona antes de entregarse a un cliente.
+
+### Cambios desde el MCP (fase 2, apagada por defecto)
+Un agente puede **proponer** cambios y, solo con su aprobación, aplicarlos. Hacen falta **tres permisos a la vez**:
+1. El servidor con `MCP_ALLOW_WRITE=true` (variable de entorno del backend).
+2. Un token creado con «Permitir proponer cambios» (los demás tokens siguen en solo lectura).
+3. La conexión con el interruptor «Cambios desde el MCP» activado (aparece en la tarjeta de cada conexión REST).
+
+Reglas del juego:
+- **Solo cinco acciones y ninguna destructiva:** crear regla, habilitar/deshabilitar regla, mover regla, crear host y crear servicio. No hay borrados ni ediciones libres.
+- Una regla nueva nace **deshabilitada**; las reglas accept Any→Any se rechazan; zonas, redes y servicios deben existir.
+- Flujo: `propose_*` valida y devuelve el **diff** y un `change_id` (caduca a los 15 min); `apply_change(change_id, confirm=true)` exige confirmación explícita, el **mismo token**, que el equipo **no haya cambiado** desde la propuesta y una **copia previa** del recurso (sin ella no se aplica); después **verifica** el resultado. Tras un timeout consulta el estado antes de concluir (aplicado / no aplicado / sin confirmar).
+- Todo queda en el **registro de auditoría** (propuestas, rechazos, aplicaciones, con la carga enviada y la copia previa), visible en el panel del MCP.
+- Recomendación: pida siempre a una persona que revise el resumen antes de que el agente aplique, y compruebe el efecto con `explain_rule_match`.
 
 ## 6. Limitaciones actuales de ALFIL
 - En modo REST la auditoría recolecta casi todo lo que ofrece la API v1 (reglas, NAT, objetos y grupos, servicios, interfaces/VLAN/alias/LAG, rutas, VPN, usuarios, horarios, inspección TLS, filtrado web y de aplicaciones, DNS, respaldo, políticas de acceso). **No disponible**: NTP y zona horaria, estado y versión del sistema, certificado de administración, grupos de reglas de firewall, rutas y perfiles SD-WAN (la API v1 no los expone o su formato no está verificado). Esas secciones salen como «No disponible aún en modo REST» y el auditor no afirma nada sobre ellas. Los detalles de las políticas web y de aplicaciones se guardan completos en los exportes (JSON).
