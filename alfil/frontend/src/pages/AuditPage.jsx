@@ -35,6 +35,8 @@ function Section({ icon: Icon, title, count, children, defaultOpen = false }) {
   );
 }
 
+const HEALTH_SEV = { high: "Alta", medium: "Media", low: "Baja", veryLow: "Muy baja" };
+
 function IssueRow({ issue }) {
   const bg = { critical: "bg-red-50 border-red-100", warning: "bg-yellow-50 border-yellow-100", info: "bg-blue-50 border-blue-100" };
   return (
@@ -43,6 +45,7 @@ function IssueRow({ issue }) {
       <div className="flex-1 min-w-0">
         <p className="font-medium text-gray-800">{issue.title}</p>
         <p className="text-gray-600 text-xs mt-0.5">{issue.detail}</p>
+        {issue.recommendation && <p className="text-gray-700 text-xs mt-1"><span className="font-semibold">Recomendación:</span> {issue.recommendation}</p>}
       </div>
     </div>
   );
@@ -373,6 +376,26 @@ export default function AuditPage() {
               : [...report.issues].sort((a, b) => (SEV_ORDER[a.severity] ?? 9) - (SEV_ORDER[b.severity] ?? 9)).map((issue, i) => <IssueRow key={i} issue={issue} />)
             }
           </Section>
+
+          {report.vendor_health && (
+            <Section icon={CheckCircle} title="Verificación de políticas del equipo (Sophos Health Check)" count={`${report.vendor_health.non_compliant} no conformes`}>
+              <p className="text-xs text-gray-500 mb-3">
+                {report.vendor_health.non_compliant} de {report.vendor_health.total} políticas no conformes
+                ({Object.entries(report.vendor_health.by_severity).map(([k, v]) => `${HEALTH_SEV[k] || k}: ${v}`).join(", ") || "ninguna"}).
+                Es la evaluación del propio firewall y no forma parte del puntaje de ALFIL.
+              </p>
+              <DataTable headers={["Severidad", "Módulo", "Política"]}
+                rows={report.vendor_health.non_compliant_policies.map(p => [HEALTH_SEV[p.severity] || p.severity, p.module, p.policy])} />
+            </Section>
+          )}
+
+          {report.coverage?.length > 0 && (
+            <Section icon={AlertCircle} title="Alcance de la revisión: secciones no evaluadas" count={report.coverage.length}>
+              <p className="text-xs text-gray-500 mb-3">El reporte no afirma nada sobre estas secciones.</p>
+              <DataTable headers={["Sección", "Estado", "Motivo"]}
+                rows={report.coverage.map(c => [c.label, c.status === "no_disponible" ? "No disponible" : "Error de consulta", c.reason])} />
+            </Section>
+          )}
 
           <Section icon={Users} title="Administradores" count={report.sections?.admin_users?.data?.length}>
             {report.sections?.admin_users?.issues?.map((i, idx) => <IssueRow key={idx} issue={i} />)}

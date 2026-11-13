@@ -22,6 +22,68 @@ def _issue(severity: str, category: str, title: str, detail: str, reference: str
     return {"severity": severity, "category": category, "title": title, "detail": detail, "reference": reference}
 
 
+RECOMMENDATIONS = (
+    ("Admin '", "Habilitar OTP/MFA para la consola de administración y aplicarlo a todos los administradores (Autenticación › Autenticación multifactor)."),
+    ("Acceso administrativo desde zona WAN", "Quitar HTTPS/SSH de la zona WAN o limitarlos a redes de confianza con una regla de excepción de acceso; administrar por VPN."),
+    ("Regla permisiva Any", "Sustituir por reglas con origen, destino y servicios concretos; si es temporal, documentarlo y fijar fecha de retiro."),
+    ("Regla sin logging", "Activar el registro de tráfico en la regla para tener trazabilidad e investigar incidentes."),
+    ("Regla duplicada", "Conservar una sola de las reglas (la de mejor posición) y eliminar la otra tras confirmar que no difieren en nada."),
+    ("Regla deshabilitada", "Confirmar con el responsable si sigue siendo necesaria; eliminarla si no, para reducir la superficie de revisión."),
+    ("Regla NAT deshabilitada", "Confirmar si es obsoleta y eliminarla."),
+    ("Publicación DNAT", "Confirmar que el servicio publicado es necesario, restringir el origen y revisar que la regla de firewall asociada sea específica."),
+    ("Certificado de administración", "Instalar un certificado emitido por una CA de confianza para la consola de administración."),
+    ("Sin notificaciones", "Habilitar correo o SNMP traps y notificar al menos inicios de sesión fallidos, eventos de IPS y caídas de interfaz o HA."),
+    ("NTP no configurado", "Configurar servidores NTP para mantener la hora correcta en logs y certificados."),
+    ("NTP y zona horaria no evaluados", "Verificar NTP y zona horaria manualmente o con una conexión por API XML."),
+    ("No se identificaron zonas WAN", "Revisar los tipos de zona; una zona de Internet debe ser de tipo WAN para evaluar su exposición."),
+    ("host(s) sin uso", "Revisar la lista, conservar los predefinidos y eliminar los que sean obsoletos (con un respaldo previo)."),
+)
+
+COLLECTOR_LABELS = {
+    "system_status": "Estado y versión del sistema", "time_settings": "NTP y zona horaria", "firewall_rule_groups": "Grupos de reglas de firewall",
+    "sdwan_policy_routes": "Rutas SD-WAN", "sdwan_profiles": "Perfiles SD-WAN", "health_check_profiles": "Perfiles de health check de SD-WAN",
+    "admin_users": "Administradores y MFA", "static_routes": "Rutas estáticas", "vpn_ipsec_connections": "VPN IPsec",
+    "ssl_tls_rules": "Inspección TLS", "web_filter_policies": "Filtrado web", "app_filter_policies": "Control de aplicaciones",
+    "firewall_rules": "Reglas de firewall", "nat_rules": "Reglas NAT", "hosts": "Hosts", "zones": "Zonas", "interfaces": "Interfaces",
+    "device_access": "Acceso al dispositivo", "notification_settings": "Notificaciones", "admin_settings": "Ajustes de administración",
+}
+
+
+def _add_recommendations(issues: list[dict]) -> None:
+    for i in issues:
+        i.setdefault("recommendation", next((rec for prefix, rec in RECOMMENDATIONS if prefix.lower() in i["title"].lower()), ""))
+
+
+def _coverage(raw_data: dict) -> list[dict]:
+    """Qué secciones no se pudieron evaluar (la API no las ofrece, o falló la consulta) para no dar falsa sensación de cobertura."""
+    out = []
+    for key, entry in raw_data.items():
+        if not isinstance(entry, dict) or entry.get("success", True) is True:
+            continue
+        status = "no_disponible" if entry.get("unsupported") else "error"
+        out.append({"section": key, "label": COLLECTOR_LABELS.get(key, key.replace("_", " ")), "status": status,
+                    "reason": entry.get("error", "")})
+    return sorted(out, key=lambda c: (c["status"], c["label"]))
+
+
+def _vendor_health(raw_data: dict) -> dict | None:
+    entry = raw_data.get("vendor_health")
+    if not entry or not entry.get("success"):
+        return None
+    items = entry.get("data", [])
+    rank = {"high": 0, "medium": 1, "low": 2, "veryLow": 3}
+    status = lambda i: i.get("overriddenStatus") or i.get("status") or ""  # noqa: E731
+    failing = sorted((i for i in items if status(i) == "nonCompliant"), key=lambda i: (rank.get(i.get("severity"), 9), i.get("module", ""), i.get("policy", "")))
+    return {
+        "total": len(items),
+        "compliant": sum(1 for i in items if status(i) == "compliant"),
+        "non_compliant": len(failing),
+        "by_severity": {sev: sum(1 for i in failing if i.get("severity") == sev) for sev in rank if any(i.get("severity") == sev for i in failing)},
+        "non_compliant_policies": [{"policy": i.get("policy", ""), "module": i.get("module", ""), "severity": i.get("severity", ""),
+                                   "standards": i.get("standards") or []} for i in failing],
+    }
+
+
 # ---------------------------------------------------------------------------
 # Análisis por sección
 # ---------------------------------------------------------------------------
@@ -92,9 +154,14 @@ def _analyze_admin_settings(data: dict) -> list[dict]:
 
 def _analyze_time_settings(data: dict) -> list[dict]:
     issues = []
-    t = data.get("time_settings", {}).get("data", {})
+    entry = data.get("time_settings", {})
+    t = entry.get("data", {})
     if not t:
-        issues.append(_issue(INFO, "system", "No se pudo obtener configuración de tiempo", "Verificar permisos de la cuenta API."))
+        if entry.get("unsupported"):
+            issues.append(_issue(INFO, "system", "NTP y zona horaria no evaluados",
+                                 "La API REST v1 no expone la hora del equipo. Verifique NTP y zona horaria desde la consola o con la API XML."))
+        else:
+            issues.append(_issue(INFO, "system", "No se pudo obtener configuración de tiempo", "Verificar permisos de la cuenta API."))
         return issues
 
     timezone_val = t.get("TimeZone") or t.get("Timezone", "")
@@ -206,8 +273,7 @@ def _analyze_zones(data: dict) -> list[dict]:
 
 
 def _analyze_hosts(data: dict, firewall_rules: list[dict], nat_rules: list[dict]) -> list[dict]:
-    """Detecta hosts definidos que no se usan en ninguna regla."""
-    issues = []
+    """Hosts definidos que no usa ninguna regla de firewall ni NAT (directa o a través de un grupo usado). Un solo hallazgo."""
     hosts = data.get("hosts", {}).get("data", [])
     host_names = {h.get("name", "") for h in hosts if h.get("name", "")}
 
@@ -224,12 +290,17 @@ def _analyze_hosts(data: dict, firewall_rules: list[dict], nat_rules: list[dict]
             used.add(net)
         for net in r.get("original_destination_networks", []):
             used.add(net)
+    for g in data.get("host_groups", {}).get("data", []) or []:  # los miembros de un grupo usado también están en uso
+        if g.get("name") in used:
+            used.update(g.get("hosts", []))
 
-    unused = host_names - used - {"Any", ""}
-    for h in sorted(unused):
-        issues.append(_issue(INFO, "hosts", f"Host sin uso en reglas: '{h}'",
-                             "El objeto existe pero no está referenciado en ninguna regla de firewall o NAT.", h))
-    return issues
+    unused = sorted(host_names - used - {"Any", ""})
+    if not unused:
+        return []
+    sample = ", ".join(f"'{h}'" for h in unused[:10]) + (f" y {len(unused) - 10} más" if len(unused) > 10 else "")
+    return [_issue(INFO, "hosts", f"{len(unused)} host(s) sin uso en reglas ni NAT",
+                   f"Objetos definidos que ninguna regla de firewall o NAT referencia, directa ni por grupo: {sample}. "
+                   "Pueden ser objetos predefinidos del equipo; revisar antes de eliminar.", ", ".join(unused))]
 
 
 def _analyze_notifications(data: dict) -> list[dict]:
@@ -366,6 +437,8 @@ def generate_audit_report(connection_info: dict, raw_data: dict) -> dict:
 
     all_issues = admin_issues + access_issues + settings_issues + time_issues + zone_issues + notif_issues + fw_issues + nat_issues + host_issues
 
+    _add_recommendations(all_issues)
+
     # Resumen
     summary = {
         "total_issues": len(all_issues),
@@ -388,6 +461,8 @@ def generate_audit_report(connection_info: dict, raw_data: dict) -> dict:
         "connection": connection_info,
         "generated_at": generated_at,
         "summary": summary,
+        "coverage": _coverage(raw_data),
+        "vendor_health": _vendor_health(raw_data),
         "topology": topology,
         "system": {
             "hostname": system_raw.get("Hostname") or (admin_raw.get("HostnameSettings") or {}).get("HostName") or admin_raw.get("Hostname", ""),

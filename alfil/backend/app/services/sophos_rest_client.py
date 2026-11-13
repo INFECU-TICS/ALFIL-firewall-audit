@@ -250,6 +250,14 @@ class SophosRestClient:
             return {"success": False, "error": str(e)}
         return {"success": True, "data": normalize(data if isinstance(data, dict) else {})}
 
+    def get_vendor_health(self):
+        """Verificación de políticas del propio equipo (Health Check de Sophos); solo REST, no cuenta en el puntaje de ALFIL."""
+        try:
+            items = self._get_all("/firewall-health-check/policies")
+        except RestError as e:
+            return {"success": False, "error": str(e)}
+        return {"success": True, "data": items, "count": len(items)}
+
     def get_dns(self):
         return self._single("/network/dns/settings")
 
@@ -297,7 +305,7 @@ class SophosRestClient:
             "web_filter_exceptions": self.get_web_filter_exceptions, "app_filter_policies": self.get_app_filter_policies,
             "dns": self.get_dns, "dns_request_routes": self.get_dns_request_routes, "backup_restore": self.get_backup_restore,
             "access_time_policies": self.get_access_time_policies, "surfing_quota_policies": self.get_surfing_quota_policies,
-            "data_transfer_policies": self.get_data_transfer_policies,
+            "data_transfer_policies": self.get_data_transfer_policies, "vendor_health": self.get_vendor_health,
         }
         results: Dict[str, Any] = {k: dict(UNSUPPORTED) for k in ALL_KEYS}
         with ThreadPoolExecutor(max_workers=self.max_workers) as pool:

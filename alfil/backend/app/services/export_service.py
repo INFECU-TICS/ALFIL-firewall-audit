@@ -10,6 +10,86 @@ import zipfile
 from datetime import datetime
 
 SEVERITY_ORDER = {"critical": 0, "warning": 1, "info": 2, "ok": 3}
+SEVERITY_LABEL = {"critical": "Crítico", "warning": "Advertencia", "info": "Informativo"}
+HEALTH_SEVERITY_LABEL = {"high": "Alta", "medium": "Media", "low": "Baja", "veryLow": "Muy baja"}
+CATEGORY_LABEL = {
+    "admin_users": "Administradores", "device_access": "Acceso al dispositivo", "system": "Sistema", "firewall_rules": "Reglas de firewall",
+    "nat_rules": "Reglas NAT", "hosts": "Objetos (hosts)", "zones": "Zonas", "notifications": "Notificaciones",
+}
+COVERAGE_STATUS_LABEL = {"no_disponible": "No disponible", "error": "Error de consulta"}
+
+
+def fmt_date(value: str) -> str:
+    """ISO 8601 -> «2026-11-13 15:53 UTC» (si no se puede interpretar, se devuelve tal cual)."""
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return dt.strftime("%Y-%m-%d %H:%M") + (" UTC" if dt.utcoffset() is not None else "")
+    except ValueError:
+        return str(value or "")
+
+
+def sev_label(sev: str) -> str:
+    return SEVERITY_LABEL.get(sev, str(sev).capitalize())
+
+
+def category_label(cat: str) -> str:
+    return CATEGORY_LABEL.get(cat, str(cat).replace("_", " ").capitalize())
+
+
+def join(value) -> str:
+    return ", ".join(str(v) for v in value) if isinstance(value, (list, tuple)) else ("" if value is None else str(value))
+
+
+def sorted_issues(report: dict) -> list:
+    return sorted(report.get("issues", []), key=lambda i: SEVERITY_ORDER.get(i["severity"], 9))
+
+
+# Hojas de datos del Excel: (título, sección del reporte, columnas [(encabezado, función(fila) -> valor)])
+def _g(key):
+    return lambda r: join(r.get(key))
+
+
+DATA_SHEETS = [
+    ("Reglas Firewall", "firewall_rules", [("Nombre", _g("name")), ("Estado", _g("status")), ("Acción", _g("action")), ("Zonas origen", _g("source_zones")),
+        ("Zonas destino", _g("destination_zones")), ("Redes origen", _g("source_networks")), ("Redes destino", _g("destination_networks")),
+        ("Servicios", _g("services")), ("Log", _g("log_traffic")), ("Descripción", _g("description"))]),
+    ("Reglas NAT", "nat_rules", [("Nombre", _g("name")), ("Estado", _g("status")), ("Tipo NAT", _g("nat_type")), ("Zonas origen", _g("source_zones")),
+        ("Origen original", _g("original_source")), ("Origen traducido", _g("translated_source")), ("Destino original", _g("original_destination")),
+        ("Destino traducido", _g("translated_destination")), ("Servicio original", _g("original_service")),
+        ("Servicio traducido", _g("translated_service")), ("Log", _g("log_traffic"))]),
+    ("Administradores", "admin_users", [("Nombre", _g("name")), ("Perfil", _g("profile")), ("Correo", _g("email")),
+        ("MFA/OTP", lambda u: "Sí" if u.get("otp_enabled") else "NO"), ("Restricción", _g("login_restriction")), ("Redes permitidas", _g("allowed_networks"))]),
+    ("Acceso al dispositivo", "device_access", [("Regla / zona", _g("rule_name")), ("Zona origen", _g("source_zone")), ("Servicios", _g("services")),
+        ("Redes", _g("hosts")), ("Acción", _g("action"))]),
+    ("Usuarios", "auth_users", [("Usuario", _g("username")), ("Nombre", _g("name")), ("Tipo", _g("user_type")), ("Grupo", _g("group")), ("Estado", _g("status"))]),
+    ("Zonas", "zones", [("Nombre", _g("name")), ("Tipo", _g("type")), ("Descripción", _g("description"))]),
+    ("Interfaces", "interfaces", [("Nombre", _g("name")), ("Tipo", _g("type")), ("IP", _g("ip_address")), ("Máscara", _g("netmask")),
+        ("Zona", _g("zone")), ("Estado", _g("status"))]),
+    ("VLAN", "vlans", [("Nombre", _g("name")), ("ID", _g("vlan_id")), ("Interfaz", _g("interface")), ("Zona", _g("zone")), ("IP", _g("ip_address")), ("Máscara", _g("netmask"))]),
+    ("Rutas", "static_routes", [("Nombre", _g("Name")), ("Destino", _g("DestinationIP")), ("Máscara", _g("Netmask")), ("Gateway", _g("Gateway")), ("Interfaz", _g("Interface")), ("Métrica", _g("Distance"))]),
+    ("VPN IPsec", "vpn_ipsec_connections", [("Nombre", _g("name")), ("Estado", _g("status")), ("Tipo", _g("connection_type")), ("Gateway remoto", _g("remote_gateway"))]),
+    ("Hosts", "hosts", [("Nombre", _g("name")), ("Tipo", _g("type")), ("IP", _g("ip_address")), ("Subred", _g("subnet")), ("IP inicio", _g("start_ip")), ("IP fin", _g("end_ip"))]),
+    ("Grupos de hosts", "host_groups", [("Nombre", _g("name")), ("Miembros", _g("hosts")), ("Descripción", _g("description"))]),
+    ("Hosts FQDN", "fqdn_hosts", [("Nombre", _g("name")), ("FQDN", _g("fqdn")), ("Grupos", _g("groups"))]),
+    ("Servicios", "services", [("Nombre", _g("name")), ("Tipo", _g("type")), ("Protocolo", _g("protocol"))]),
+    ("Horarios", "schedules", [("Nombre", _g("name")), ("Tipo", _g("type")), ("Días", _g("days")), ("Desde", _g("start_time")), ("Hasta", _g("stop_time"))]),
+    ("Filtrado web", "web_filter", [("Política", _g("name")), ("Acción por defecto", _g("default_action")), ("Descripción", _g("description"))]),
+    ("Control de apps", "app_filter", [("Política", _g("name")), ("Descripción", _g("description"))]),
+    ("Inspección TLS", "ssl_tls_rules", [("Regla", _g("name")), ("Estado", _g("enabled")), ("Acción", _g("decrypt_action")), ("Perfil", _g("decryption_profile")),
+        ("Zonas origen", _g("source_zones")), ("Zonas destino", _g("destination_zones"))]),
+]
+
+
+def _rows(report: dict, section: str) -> list:
+    data = report.get("sections", {}).get(section, {}).get("data", [])
+    return [r for r in data if isinstance(r, dict)] if isinstance(data, list) else []
+
+
+def _system_rows(report: dict) -> list:
+    sys = report.get("system", {}) or {}
+    pairs = [("Nombre del equipo", sys.get("hostname")), ("Modelo", sys.get("model")), ("Firmware", sys.get("firmware")),
+             ("Tiempo en línea", sys.get("uptime")), ("Zona horaria", sys.get("timezone"))]
+    return [(k, v) for k, v in pairs if v]
 
 
 # ---------------------------------------------------------------------------
@@ -21,27 +101,34 @@ def generate_excel(report: dict) -> io.BytesIO:
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
 
-    COLORS = {
-        "critical": "FFCCCC",
-        "warning":  "FFF2CC",
-        "info":     "DAE8FC",
-        "header":   "1F3864",
-    }
+    COLORS = {"critical": "FFCCCC", "warning": "FFF2CC", "info": "DAE8FC", "header": "1F3864"}
     HEADER_FONT = Font(bold=True, color="FFFFFF")
+    WRAP = Alignment(wrap_text=True, vertical="top")
 
     def header_row(ws, headers):
         ws.append(headers)
         for cell in ws[ws.max_row]:
             cell.font = HEADER_FONT
             cell.fill = PatternFill("solid", fgColor=COLORS["header"])
-            cell.alignment = Alignment(horizontal="center")
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+        ws.freeze_panes = "A2"
 
-    def auto_width(ws):
+    def auto_width(ws, cap=60):
         for col in ws.columns:
             w = max((len(str(c.value or "")) for c in col), default=10)
-            ws.column_dimensions[get_column_letter(col[0].column)].width = min(w + 4, 60)
+            ws.column_dimensions[get_column_letter(col[0].column)].width = min(w + 3, cap)
+
+    def finish(ws, wrap_cols=()):
+        auto_width(ws)
+        if ws.max_row > 1:
+            ws.auto_filter.ref = ws.dimensions
+        for row in ws.iter_rows(min_row=2):
+            for c in row:
+                if c.column in wrap_cols:
+                    c.alignment = WRAP
 
     wb = openpyxl.Workbook()
+    summary = report["summary"]
 
     # ---- Resumen ----
     ws = wb.active
@@ -50,90 +137,75 @@ def generate_excel(report: dict) -> io.BytesIO:
     ws["A1"].font = Font(bold=True, size=14)
     ws.append(["Equipo", report["connection"]["name"]])
     ws.append(["Host", report["connection"]["host"]])
-    ws.append(["Fecha", report["generated_at"]])
-    ws.append(["Puntaje", f"{report['summary']['score']} / 100"])
+    ws.append(["Tipo de API", {"rest": "REST (SFOS v23)", "xml": "XML"}.get(report["connection"].get("api_type"), "")])
+    ws.append(["Fecha", fmt_date(report["generated_at"])])
+    ws.append(["Puntaje", f"{summary['score']} / 100"])
+    for k, v in _system_rows(report):
+        ws.append([k, v])
     ws.append([])
     ws.append(["Severidad", "Cantidad"])
-    for sev, color in [("critical", COLORS["critical"]), ("warning", COLORS["warning"]), ("info", COLORS["info"])]:
-        r = ws.max_row + 1
-        ws.append([sev.capitalize(), report["summary"][sev]])
-        ws[f"A{r}"].fill = PatternFill("solid", fgColor=color)
-    ws.append(["Total", report["summary"]["total_issues"]])
+    ws[f"A{ws.max_row}"].font = ws[f"B{ws.max_row}"].font = Font(bold=True)
+    for sev in ("critical", "warning", "info"):
+        ws.append([sev_label(sev), summary[sev]])
+        ws[f"A{ws.max_row}"].fill = PatternFill("solid", fgColor=COLORS[sev])
+    ws.append(["Total", summary["total_issues"]])
+    ws[f"A{ws.max_row}"].font = ws[f"B{ws.max_row}"].font = Font(bold=True)
+    vh = report.get("vendor_health")
+    if vh:
+        ws.append([])
+        ws.append(["Verificación de políticas del equipo (Sophos)", f"{vh['non_compliant']} no conformes de {vh['total']}"])
+    cov = report.get("coverage") or []
+    if cov:
+        ws.append([])
+        ws.append(["Secciones no evaluadas", f"{len(cov)} (ver hoja «Alcance»)"])
+    ws.append([])
+    ws.append(["Nota", "La revisión se basa en la configuración del equipo; debe ser validada por una persona antes de entregarse a un cliente."])
+    auto_width(ws, cap=90)
 
     # ---- Hallazgos ----
     ws_i = wb.create_sheet("Hallazgos")
-    header_row(ws_i, ["Severidad", "Categoría", "Título", "Detalle", "Referencia"])
-    for issue in sorted(report.get("issues", []), key=lambda i: SEVERITY_ORDER.get(i["severity"], 9)):
-        ws_i.append([issue["severity"].upper(), issue["category"], issue["title"], issue["detail"], issue.get("reference", "")])
-        row = ws_i.max_row
+    header_row(ws_i, ["Severidad", "Categoría", "Hallazgo", "Detalle", "Recomendación", "Referencia"])
+    for issue in sorted_issues(report):
+        ws_i.append([sev_label(issue["severity"]), category_label(issue["category"]), issue["title"], issue["detail"],
+                     issue.get("recommendation", ""), issue.get("reference", "")])
         color = COLORS.get(issue["severity"])
         if color:
-            for col in range(1, 6):
-                ws_i.cell(row=row, column=col).fill = PatternFill("solid", fgColor=color)
-    auto_width(ws_i)
-
-    # ---- Reglas Firewall ----
-    ws_fw = wb.create_sheet("Reglas Firewall")
-    header_row(ws_fw, ["Nombre", "Estado", "Acción", "Zonas Origen", "Zonas Destino",
-                        "Redes Origen", "Redes Destino", "Servicios", "Log", "Descripción"])
-    for r in report.get("sections", {}).get("firewall_rules", {}).get("data", []):
-        ws_fw.append([r.get("name"), r.get("status"), r.get("action"),
-                      ", ".join(r.get("source_zones", [])), ", ".join(r.get("destination_zones", [])),
-                      ", ".join(r.get("source_networks", [])), ", ".join(r.get("destination_networks", [])),
-                      ", ".join(r.get("services", [])), r.get("log_traffic"), r.get("description")])
-    auto_width(ws_fw)
-
-    # ---- Reglas NAT ----
-    ws_nat = wb.create_sheet("Reglas NAT")
-    header_row(ws_nat, ["Nombre", "Estado", "Tipo NAT", "Zona Origen", "Orig Src", "Trans Src",
-                         "Orig Dst", "Trans Dst", "Orig Svc", "Trans Svc", "Log"])
-    for r in report.get("sections", {}).get("nat_rules", {}).get("data", []):
-        ws_nat.append([r.get("name"), r.get("status"), r.get("nat_type"),
-                       ", ".join(r.get("source_zones", [])),
-                       r.get("original_source"), r.get("translated_source"),
-                       r.get("original_destination"), r.get("translated_destination"),
-                       r.get("original_service"), r.get("translated_service"), r.get("log_traffic")])
-    auto_width(ws_nat)
-
-    # ---- Administradores ----
-    ws_adm = wb.create_sheet("Administradores")
-    header_row(ws_adm, ["Nombre", "Perfil", "Email", "MFA/OTP", "Restricción", "Redes Permitidas"])
-    for u in report.get("sections", {}).get("admin_users", {}).get("data", []):
-        ws_adm.append([u.get("name"), u.get("profile"), u.get("email"),
-                       "Sí" if u.get("otp_enabled") else "NO",
-                       u.get("login_restriction"), u.get("allowed_networks")])
-        if not u.get("otp_enabled"):
             for col in range(1, 7):
-                ws_adm.cell(ws_adm.max_row, col).fill = PatternFill("solid", fgColor=COLORS["critical"])
-    auto_width(ws_adm)
+                ws_i.cell(row=ws_i.max_row, column=col).fill = PatternFill("solid", fgColor=color)
+    finish(ws_i, wrap_cols=(3, 4, 5, 6))
+    for col, w in (("C", 45), ("D", 60), ("E", 60), ("F", 40)):
+        ws_i.column_dimensions[col].width = w
 
-    # ---- Hosts ----
-    ws_h = wb.create_sheet("Hosts")
-    header_row(ws_h, ["Nombre", "Tipo", "IP", "Subred", "IP Inicio", "IP Fin"])
-    for h in report.get("sections", {}).get("hosts", {}).get("data", []):
-        ws_h.append([h.get("name"), h.get("type"), h.get("ip_address"), h.get("subnet"), h.get("start_ip"), h.get("end_ip")])
-    auto_width(ws_h)
+    # ---- Verificación del fabricante ----
+    if vh:
+        ws_v = wb.create_sheet("Verificación Sophos")
+        header_row(ws_v, ["Severidad", "Módulo", "Política (no conforme)", "Estándares"])
+        for p in vh["non_compliant_policies"]:
+            ws_v.append([HEALTH_SEVERITY_LABEL.get(p["severity"], p["severity"]), p["module"], p["policy"], join(p["standards"])])
+        finish(ws_v, wrap_cols=(3,))
+        ws_v.column_dimensions["C"].width = 90
 
-    # ---- Zonas ----
-    ws_z = wb.create_sheet("Zonas")
-    header_row(ws_z, ["Nombre", "Tipo", "Descripción"])
-    for z in report.get("sections", {}).get("zones", {}).get("data", []):
-        ws_z.append([z.get("name"), z.get("type"), z.get("description")])
-    auto_width(ws_z)
+    # ---- Datos ----
+    for title, section, columns in DATA_SHEETS:
+        rows = _rows(report, section)
+        if not rows:
+            continue
+        w = wb.create_sheet(title)
+        header_row(w, [h for h, _ in columns])
+        for r in rows:
+            w.append([fn(r) for _, fn in columns])
+            if section == "admin_users" and not r.get("otp_enabled"):
+                for col in range(1, len(columns) + 1):
+                    w.cell(w.max_row, col).fill = PatternFill("solid", fgColor=COLORS["critical"])
+        finish(w)
 
-    # ---- Interfaces ----
-    ws_if = wb.create_sheet("Interfaces")
-    header_row(ws_if, ["Nombre", "Tipo", "IP", "Máscara", "Zona", "Estado"])
-    for i in report.get("sections", {}).get("interfaces", {}).get("data", []):
-        ws_if.append([i.get("name"), i.get("type"), i.get("ip_address"), i.get("netmask"), i.get("zone"), i.get("status")])
-    auto_width(ws_if)
-
-    # ---- Servicios ----
-    ws_svc = wb.create_sheet("Servicios")
-    header_row(ws_svc, ["Nombre", "Tipo", "Protocolo"])
-    for s in report.get("sections", {}).get("services", {}).get("data", []):
-        ws_svc.append([s.get("name"), s.get("type"), s.get("protocol")])
-    auto_width(ws_svc)
+    # ---- Alcance ----
+    if cov:
+        w = wb.create_sheet("Alcance")
+        header_row(w, ["Sección", "Estado", "Motivo"])
+        for c in cov:
+            w.append([c["label"], COVERAGE_STATUS_LABEL.get(c["status"], c["status"]), c["reason"]])
+        finish(w, wrap_cols=(3,))
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -146,96 +218,98 @@ def generate_excel(report: dict) -> io.BytesIO:
 # ---------------------------------------------------------------------------
 
 def generate_pdf(report: dict) -> io.BytesIO:
+    from xml.sax.saxutils import escape
+
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import cm
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
-    from reportlab.lib.enums import TA_CENTER
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
 
-    SEV_COLORS = {
-        "critical": colors.HexColor("#FFCCCC"),
-        "warning":  colors.HexColor("#FFF2CC"),
-        "info":     colors.HexColor("#DAE8FC"),
-    }
+    SEV_COLORS = {"critical": colors.HexColor("#FFCCCC"), "warning": colors.HexColor("#FFF2CC"), "info": colors.HexColor("#DAE8FC")}
     HEADER_BG = colors.HexColor("#1F3864")
 
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=2*cm, rightMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
+
+    def footer(canvas, doc):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(colors.grey)
+        canvas.drawString(2 * cm, 1.2 * cm, f"ALFIL · {report['connection']['name']} · {fmt_date(report['generated_at'])}")
+        canvas.drawRightString(A4[0] - 2 * cm, 1.2 * cm, f"Página {doc.page}")
+        canvas.restoreState()
+
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=2 * cm, bottomMargin=2 * cm,
+                            title="Reporte de Salud – ALFIL", author="ALFIL")
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle("title", parent=styles["Title"], fontSize=18, textColor=HEADER_BG)
     h2_style = ParagraphStyle("h2", parent=styles["Heading2"], textColor=HEADER_BG, spaceBefore=12)
     body = styles["Normal"]
+    small = ParagraphStyle("small", parent=body, fontSize=8, leading=10)
+    note = ParagraphStyle("note", parent=body, fontSize=8, textColor=colors.grey)
+
+    def P(text, style=small):  # los nombres de reglas/objetos pueden traer «&», «<»: nunca pasarlos crudos a Paragraph
+        return Paragraph(escape(str(text or "")), style)
 
     def tbl(data, col_widths, extra_styles=None):
-        t = Table(data, colWidths=col_widths)
-        base = [
-            ("BACKGROUND", (0, 0), (-1, 0), HEADER_BG),
-            ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
-            ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("VALIGN",     (0, 0), (-1, -1), "TOP"),
-            ("GRID",       (0, 0), (-1, -1), 0.3, colors.lightgrey),
-            ("FONTSIZE",   (0, 0), (-1, -1), 8),
-        ]
-        if extra_styles:
-            base.extend(extra_styles)
-        t.setStyle(TableStyle(base))
+        t = Table(data, colWidths=col_widths, repeatRows=1)
+        base = [("BACKGROUND", (0, 0), (-1, 0), HEADER_BG), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("GRID", (0, 0), (-1, -1), 0.3, colors.lightgrey), ("FONTSIZE", (0, 0), (-1, -1), 8)]
+        t.setStyle(TableStyle(base + (extra_styles or [])))
         return t
 
-    story = []
-    story.append(Paragraph("Reporte de Salud – ALFIL Firewall Audit", title_style))
-    story.append(Spacer(1, 0.3*cm))
-    story.append(Paragraph(f"<b>Equipo:</b> {report['connection']['name']} ({report['connection']['host']})", body))
-    story.append(Paragraph(f"<b>Fecha:</b> {report['generated_at']}", body))
-    story.append(Paragraph(f"<b>Puntaje:</b> {report['summary']['score']} / 100", body))
-    story.append(Spacer(1, 0.3*cm))
-    story.append(HRFlowable(width="100%"))
-    story.append(Spacer(1, 0.3*cm))
+    summary = report["summary"]
+    story = [Paragraph("Reporte de Salud – ALFIL Firewall Audit", title_style), Spacer(1, 0.3 * cm)]
+    story.append(Paragraph(f"<b>Equipo:</b> {escape(report['connection']['name'])} ({escape(str(report['connection']['host']))})", body))
+    story.append(Paragraph(f"<b>Fecha:</b> {fmt_date(report['generated_at'])}", body))
+    story.append(Paragraph(f"<b>Puntaje:</b> {summary['score']} / 100", body))
+    story += [Spacer(1, 0.3 * cm), HRFlowable(width="100%"), Spacer(1, 0.3 * cm)]
 
-    # Resumen
-    story.append(Paragraph("Resumen de Hallazgos", h2_style))
-    summary_data = [["Severidad", "Cantidad"],
-                    ["Crítico", str(report["summary"]["critical"])],
-                    ["Advertencia", str(report["summary"]["warning"])],
-                    ["Informativo", str(report["summary"]["info"])],
-                    ["Total", str(report["summary"]["total_issues"])]]
-    t = tbl(summary_data, [8*cm, 4*cm], [
-        ("BACKGROUND", (0, 1), (-1, 1), SEV_COLORS["critical"]),
-        ("BACKGROUND", (0, 2), (-1, 2), SEV_COLORS["warning"]),
-        ("BACKGROUND", (0, 3), (-1, 3), SEV_COLORS["info"]),
-        ("FONTNAME",   (0, 4), (-1, 4), "Helvetica-Bold"),
-    ])
-    story.append(t)
-    story.append(Spacer(1, 0.4*cm))
+    story.append(Paragraph("Resumen de hallazgos", h2_style))
+    story.append(tbl([["Severidad", "Cantidad"], ["Crítico", str(summary["critical"])], ["Advertencia", str(summary["warning"])],
+                      ["Informativo", str(summary["info"])], ["Total", str(summary["total_issues"])]], [8 * cm, 4 * cm],
+                     [("BACKGROUND", (0, 1), (-1, 1), SEV_COLORS["critical"]), ("BACKGROUND", (0, 2), (-1, 2), SEV_COLORS["warning"]),
+                      ("BACKGROUND", (0, 3), (-1, 3), SEV_COLORS["info"]), ("FONTNAME", (0, 4), (-1, 4), "Helvetica-Bold")]))
 
-    # Hallazgos
-    story.append(Paragraph("Hallazgos Detallados", h2_style))
-    sorted_issues = sorted(report.get("issues", []), key=lambda i: SEVERITY_ORDER.get(i["severity"], 9))
-    if sorted_issues:
-        rows = [["Sev.", "Categoría", "Título", "Detalle"]]
-        extra = []
-        for idx, issue in enumerate(sorted_issues, 1):
-            rows.append([issue["severity"].upper(), issue["category"],
-                         Paragraph(issue["title"], body), Paragraph(issue["detail"], body)])
-            bg = SEV_COLORS.get(issue["severity"])
-            if bg:
-                extra.append(("BACKGROUND", (0, idx), (1, idx), bg))
-        story.append(tbl(rows, [1.5*cm, 3*cm, 6*cm, 7.5*cm], extra))
+    issues = sorted_issues(report)
+    story.append(Paragraph("Hallazgos detallados", h2_style))
+    if issues:
+        rows, extra = [["Severidad", "Categoría", "Hallazgo", "Detalle y recomendación"]], []
+        for idx, i in enumerate(issues, 1):
+            text = escape(i["detail"]) + (f"<br/><b>Recomendación:</b> {escape(i['recommendation'])}" if i.get("recommendation") else "")
+            rows.append([sev_label(i["severity"]), P(category_label(i["category"])), P(i["title"]), Paragraph(text, small)])
+            if SEV_COLORS.get(i["severity"]):
+                extra.append(("BACKGROUND", (0, idx), (0, idx), SEV_COLORS[i["severity"]]))
+        story.append(tbl(rows, [2 * cm, 2.6 * cm, 5.2 * cm, 7.2 * cm], extra))
     else:
         story.append(Paragraph("Sin hallazgos detectados.", body))
 
-    story.append(Spacer(1, 0.4*cm))
+    vh = report.get("vendor_health")
+    if vh:
+        story.append(Paragraph("Verificación de políticas del equipo (Sophos Health Check)", h2_style))
+        by_sev = ", ".join(f"{HEALTH_SEVERITY_LABEL.get(k, k)}: {v}" for k, v in vh["by_severity"].items())
+        story.append(Paragraph(f"{vh['non_compliant']} de {vh['total']} políticas no conformes ({by_sev or 'ninguna'}). Es la evaluación del propio "
+                               "firewall y no forma parte del puntaje de ALFIL. Se listan las de severidad alta; el detalle completo está en el Excel.", body))
+        top = [p for p in vh["non_compliant_policies"] if p["severity"] == "high"][:15]
+        if top:
+            story += [Spacer(1, 0.2 * cm), tbl([["Módulo", "Política (severidad alta)"]] + [[P(p["module"]), P(p["policy"])] for p in top], [4.5 * cm, 12.5 * cm])]
 
-    # Sistema
-    story.append(Paragraph("Información del Sistema", h2_style))
-    sys = report.get("system", {})
-    sys_data = [["Campo", "Valor"],
-                ["Hostname", sys.get("hostname", "")], ["Modelo", sys.get("model", "")],
-                ["Firmware", sys.get("firmware", "")], ["Uptime", sys.get("uptime", "")],
-                ["Timezone", sys.get("timezone", "")]]
-    story.append(tbl(sys_data, [5*cm, 12*cm]))
+    cov = report.get("coverage") or []
+    story.append(Paragraph("Alcance de la revisión", h2_style))
+    if cov:
+        story.append(Paragraph("Estas secciones <b>no se evaluaron</b>; el reporte no afirma nada sobre ellas:", body))
+        story += [Spacer(1, 0.2 * cm), tbl([["Sección", "Estado", "Motivo"]] + [[P(c["label"]), COVERAGE_STATUS_LABEL.get(c["status"], c["status"]), P(c["reason"])] for c in cov],
+                                          [5 * cm, 3 * cm, 9 * cm])]
+    else:
+        story.append(Paragraph("Todas las secciones se consultaron correctamente.", body))
 
-    doc.build(story)
+    sys_rows = _system_rows(report)
+    if sys_rows:
+        story.append(KeepTogether([Paragraph("Información del sistema", h2_style), tbl([["Campo", "Valor"]] + [[k, P(v)] for k, v in sys_rows], [5 * cm, 12 * cm])]))
+    story += [Spacer(1, 0.5 * cm), Paragraph("Revisión basada en la configuración del equipo. Debe ser validada por una persona antes de entregarse a un cliente.", note)]
+
+    doc.build(story, onFirstPage=footer, onLaterPages=footer)
     buf.seek(0)
     return buf
 

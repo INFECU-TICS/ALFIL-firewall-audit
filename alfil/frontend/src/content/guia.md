@@ -1,6 +1,6 @@
 # Guía de uso de ALFIL
 
-> Última actualización: 2026-11-13 (colectores REST ampliados y consulta de usuarios en modo REST). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
+> Última actualización: 2026-11-13 (reporte y exportes revisados: recomendaciones, alcance y Health Check). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
 
 ## 1. Qué es ALFIL
 
@@ -242,6 +242,14 @@ Además indica la versión, el número de herramientas, el modo (solo lectura), 
 - La auditoría del MCP cubre hoy las **reglas de firewall**; aún no incluye MFA de administradores, acceso de administración desde WAN, objetos sin uso ni diagnóstico de tráfico.
 - Las respuestas grandes se paginan (hasta 100 elementos por página).
 - La API es *Early Access*: las rutas pueden cambiar antes de la versión general.
+
+### Qué trae el reporte y los exportes
+- **Hallazgos** con severidad, detalle y **recomendación** concreta. Los objetos sin uso se agrupan en un solo hallazgo (los miembros de un grupo en uso cuentan como usados).
+- **Verificación de políticas del equipo (Sophos Health Check):** en modo REST se muestra la evaluación del propio firewall (CIS y otras), separada del puntaje de ALFIL.
+- **Alcance de la revisión:** lista de secciones que no se pudieron evaluar (por ejemplo NTP en REST) para no sugerir una cobertura que no existe.
+- **Excel:** hojas Resumen, Hallazgos, Verificación Sophos, datos (reglas, NAT, administradores, usuarios, interfaces, rutas, VPN, hosts y grupos, FQDN, servicios, horarios, filtrado web, aplicaciones, TLS) y Alcance; encabezado fijo y filtros.
+- **PDF:** resumen, hallazgos con recomendación, Health Check (severidad alta), alcance y datos del sistema, con pie de página; los nombres con símbolos como `&` o `<` se muestran correctamente.
+- Fechas en formato `AAAA-MM-DD HH:MM UTC` y etiquetas en español. Todo reporte debe ser revisado por una persona antes de entregarse a un cliente.
 
 ## 6. Limitaciones actuales de ALFIL
 - En modo REST la auditoría recolecta casi todo lo que ofrece la API v1 (reglas, NAT, objetos y grupos, servicios, interfaces/VLAN/alias/LAG, rutas, VPN, usuarios, horarios, inspección TLS, filtrado web y de aplicaciones, DNS, respaldo, políticas de acceso). **No disponible**: NTP y zona horaria, estado y versión del sistema, certificado de administración, grupos de reglas de firewall, rutas y perfiles SD-WAN (la API v1 no los expone o su formato no está verificado). Esas secciones salen como «No disponible aún en modo REST» y el auditor no afirma nada sobre ellas. Los detalles de las políticas web y de aplicaciones se guardan completos en los exportes (JSON).
