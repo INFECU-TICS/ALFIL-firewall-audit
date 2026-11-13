@@ -1,6 +1,6 @@
 # Guía de uso de ALFIL
 
-> Última actualización: 2026-11-05 (MCP remoto y conexión de agentes). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
+> Última actualización: 2026-11-13 (herramienta audit_admin_access). Este documento se mantiene junto con el código: **toda modificación funcional debe actualizarlo** (ver la sección *Mantenimiento de esta documentación*).
 
 ## 1. Qué es ALFIL
 
@@ -206,6 +206,7 @@ Cualquier cliente MCP compatible con transporte **stdio** puede usarlo. La defin
 | `trace_object_usage(name, kind)` | Dónde se usa un objeto (host, grupo, servicio, zona, interfaz): reglas de firewall, NAT, grupos y VPN, de forma directa y a través de grupos (con la cadena). Úsela antes de borrar o cambiar un objeto |
 | `find_unused_objects(kind, limit)` | Hosts, grupos y servicios que no usa ninguna regla, NAT, VPN ni grupo usado (candidatos a limpieza). No consulta otras funciones (SD-WAN, políticas web, usuarios): revise antes de borrar |
 | `explain_path(source_ip, destination_ip)` | Por dónde pasa un flujo: red, interfaz y zona de cada extremo, ruta o VPN, problemas (blackhole, sin ruta, salto inalcanzable) y reglas candidatas del par de zonas. No evalúa NAT, SD-WAN ni ruteo dinámico. Solo con conexiones de ALFIL |
+| `audit_admin_access()` | Administradores sin MFA efectivo en la consola y exposición de HTTPS/SSH de administración desde WAN (por zona y por reglas de excepción) |
 
 Todas las herramientas que consultan un firewall aceptan el parámetro opcional `connection` (nombre o id de la conexión de ALFIL, o `directa`).
 

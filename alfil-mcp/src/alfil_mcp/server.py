@@ -29,6 +29,7 @@ from mcp.types import ToolAnnotations
 from . import __version__
 from .alfil import AlfilError, AlfilHub, heartbeat_loop
 from .analysis import rules as rule_analysis
+from .analysis import admin as admin_analysis
 from .analysis import match as match_analysis
 from .analysis import topology as topo_analysis
 from .analysis import usage as usage_analysis
@@ -157,7 +158,7 @@ mcp = MCPServer(
         "Use list_connections para ver los firewalls disponibles y el parámetro `connection` para elegir uno. "
         "list_api_endpoints y api_get leen cualquier ruta GET; audit_firewall devuelve score y hallazgos de reglas; "
         "get_topology y explain_path (solo con conexiones de ALFIL) describen la red y explican la ruta de un flujo; "
-        "explain_rule_match indica qué regla decide un flujo; trace_object_usage y find_unused_objects muestran dónde se usan los objetos. "
+        "explain_rule_match indica qué regla decide un flujo; trace_object_usage y find_unused_objects muestran dónde se usan los objetos; audit_admin_access revisa MFA y exposición de la administración. "
         "Ninguna herramienta modifica el firewall."
     ),
 )
@@ -352,6 +353,22 @@ async def find_unused_objects(kind: str | None = None, limit: int = 100, connect
         raise SophosApiError(f"`kind` debe ser uno de: {', '.join(usage_analysis.DEFINED_KINDS)}.")
     index, label = await _usage_index(connection)
     return {"connection": label, **index.unused(kind, min(max(limit, 1), 500))}
+
+
+@read_tool
+async def audit_admin_access(connection: str | None = None) -> dict[str, Any]:
+    """Seguridad del acceso administrativo: administradores sin MFA efectivo en la consola y exposición de HTTPS/SSH de
+    administración desde WAN (por zona y por reglas de excepción de acceso al dispositivo).
+
+    Crítico: sin MFA o administración abierta a Internet; advertencia: abierta solo a ciertas redes. Solo lectura.
+    """
+    client, label = await resolve_client(connection)
+    result = admin_analysis.audit_admin_access(
+        admins=await client.get_all("/authentication/users/administrators"),
+        totp=await client.get("/authentication/multi-factor-authentication/totp-settings"),
+        zones=await client.get_all("/network/zones"),
+        acl_rules=await client.get_all("/acl-exception-rules/ipv4"))
+    return {"connection": label, **result}
 
 
 @mcp.resource("firewall://summary")

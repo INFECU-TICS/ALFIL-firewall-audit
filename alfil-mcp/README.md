@@ -21,8 +21,9 @@ Servidor MCP **de solo lectura** para Sophos Firewall v23 sobre su REST API v1 (
 | `trace_object_usage(name, kind)` | Dónde se usa un objeto: reglas, NAT, grupos y VPN, directo e indirecto (con la cadena de grupos) |
 | `find_unused_objects(kind, limit)` | Hosts, grupos y servicios sin uso (candidatos a limpieza; revisar antes de borrar) |
 | `explain_path(source_ip, destination_ip)` | Ruta de un flujo según la configuración: zonas, interfaz, ruta/VPN, problemas y reglas candidatas por zona. Solo con conexiones de ALFIL |
+| `audit_admin_access()` | Administradores sin MFA efectivo en la consola y exposición de HTTPS/SSH de administración desde WAN (por zona y por reglas de excepción) |
 
-Resource: `firewall://summary`. Próximo: hardening de admin (MFA, acceso WAN), objetos sin uso, `explain_rule_match`.
+Resource: `firewall://summary`. Próximo: NAT, interfaces, notificaciones y prompts MCP.
 
 Todas las herramientas que consultan un firewall aceptan `connection` (nombre o id de ALFIL, o `directa`). Con ALFIL configurado, el MCP envía un latido cada 30 s para que el dashboard muestre su estado. Ver la guía de usuario (sección 5) para la puesta en marcha.
 

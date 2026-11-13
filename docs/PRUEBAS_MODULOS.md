@@ -39,3 +39,18 @@ Consulta: `source_ip`, `destination_ip`, `protocol` (tcp/udp/icmp…), `destinat
 - [x] Filtro por tipo y límite de resultados. _(test_filtro_por_tipo_y_limite)_
 - [x] Solo lectura: rutas GET del catálogo. _(test_tools_trace_y_unused_solo_leen_rutas_del_catalogo)_
 - [x] En vivo contra el laboratorio (2026-11-13): uso directo de un host por grupo (`sourceNetworks.ipv4Groups`) y de un servicio, objeto sin uso detectado, hosts del sistema solo vía grupo sin uso; objetos de prueba borrados al final.
+
+## C3. `audit_admin_access` (MCP, Optimizer)
+
+Misma lógica que la web en modo REST (`otp_applies_to_admin`, `build_device_access`). Fuentes: `/authentication/users/administrators`, `/authentication/multi-factor-authentication/totp-settings`, `/network/zones`, `/acl-exception-rules/ipv4`.
+
+- [x] MFA efectivo = OTP habilitado + aplicado a `webAdminPortal` + alcance que cubra al usuario o a su grupo; si no, crítico con el motivo. _(test_mfa_deshabilitado…, test_otp_no_aplicado…, test_alcance_por_usuario_y_grupo)_
+- [x] Se ignoran grupos y pseudo-usuarios sin perfil de administración. _(test_mfa_efectivo_sin_hallazgo_y_se_ignoran_cuentas_sin_perfil)_
+- [x] Administrador sin restricción de red de origen → informativo. _(test_admin_desde_cualquier_red_es_informativo)_
+- [x] HTTPS/SSH en una zona WAN → crítico; en LAN/DMZ no. Servicios de usuario en WAN → informativo. _(test_zona_wan…, test_servicios_de_usuario_en_wan…)_
+- [x] Regla de excepción desde WAN: origen «any» → crítico; origen acotado → advertencia; acción distinta de accept, otra zona o servicios no administrativos → sin hallazgo. _(test_regla_de_excepcion_wan…)_
+- [x] Sin datos no inventa hallazgos. _(test_sin_datos_no_inventa_hallazgos)_
+- [x] Solo lectura: rutas GET del catálogo. _(test_tool_lee_solo_rutas_get_del_catalogo)_
+- [x] En vivo (2026-11-13): `admin` y `support` sin MFA (OTP deshabilitado) = los mismos 2 críticos de la auditoría REST; ninguna zona WAN expone administración; con una regla de excepción temporal WAN→https acotada a un host, advertencia con el nombre de la regla (borrada después). Forma real confirmada: `sourceZone`, `sourceNetworks.ipv4Addresses`, `services:[{name}]`.
+- [~] Regla de excepción con origen «any» y zona WAN con https/ssh habilitado no se probaron en vivo (exponerían el lab a Internet); solo con tests.
+
