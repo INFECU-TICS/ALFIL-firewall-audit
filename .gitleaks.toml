@@ -7,4 +7,4 @@ useDefault = true
 
 [allowlist]
 description = "Ejemplos de la especificación oficial de Sophos"
-paths = ['''alfil-mcp/spec/openapi\.yaml''']
+paths = ['''alfil-mcp/spec/openapi\.yaml''', '''alfil/frontend/scripts/check-snippets\.mjs''']  # el segundo: token de prueba falso (alfil_mcp_ABC123)

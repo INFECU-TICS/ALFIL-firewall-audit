@@ -37,4 +37,4 @@ El video muestra la configuración real del laboratorio. Antes de publicarlo enm
 - **Secretos:** la API key se escribe en un campo protegido y el token se genera al vuelo; al terminar revoque el token y destruya el stack (`docker compose -p alfil-demo down -v`).
 - El servicio de opencode (`opencode serve --service`) cachea la configuración y el entorno: `agent.mjs` lo reinicia para que lea el token nuevo.
 - Limpieza del laboratorio: el MCP no borra; elimine `demo-servidor` desde la consola o por la API REST.
-- El mp4 no se versiona (pesa varios MB): publíquelo como recurso aparte.
+- El video publicado (`alfil-demo.mp4`, ~8 MB) se grabó con enmascarado de hostname, direccionamiento privado, IP pública y tokens; los `.webm` intermedios y `out/` no se versionan.
